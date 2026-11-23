@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+TOOLS="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)" || exit 1
+export UV_PYTHON_INSTALL_DIR="$TOOLS/python" UV_CACHE_DIR="$TOOLS/cache"
+export TORCH_HOME="$TOOLS/models" HF_HOME="$TOOLS/models" U2NET_HOME="$TOOLS/models"
+export HF_HUB_OFFLINE=1
+export PATH="$TOOLS/venv/bin:$TOOLS/rife:$TOOLS/realesrgan:$PATH:/opt/homebrew/bin:/usr/local/bin:$TOOLS/ffmpeg-vidstab/bin"
+exec "$@"

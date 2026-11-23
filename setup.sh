@@ -1,0 +1,691 @@
+#!/usr/bin/env bash
+# Sets up the Reels kit on this Mac. Safe to run more than once.
+#   bash setup.sh          install what is missing, then check
+#   bash setup.sh --check  only report what is missing (exit 1 if anything is)
+#   bash setup.sh --update take a newer version of the kit's own files, if any
+# Run it from the Reels folder it came in; that folder is where the reels are made.
+# REELS_DIR overrides the folder; used for testing.
+# Lines starting "ACTION:" are steps only the person at the Mac can do. Exit 3
+# means one is waiting: do it, then run setup.sh again. Exit 4: setup is
+# already running. Exit 5: the kit needs an update.
+# Installs only what is missing: never replaces a Node, Python or any
+# Homebrew package the Mac already has.
+# Video tools live in .tools/ inside the Reels folder.
+# Palmier Pro, the editor, goes in Applications (macOS 26 or newer only).
+# PALMIER_APPS_DIR overrides that folder; used for testing.
+set -uo pipefail
+if [ "$#" -gt 1 ]; then echo "Use --check, --update or no arguments"; exit 2; fi
+case "${1:-}" in ""|--check|--update) ;; *) echo "Unknown option: $1 (use --check, --update or nothing)"; exit 2;; esac
+KIT="$(cd "$(dirname "$0")" && pwd)"
+REELS="${REELS_DIR:-$KIT}"
+MARKER='<!-- reels-kit instructions v16 -->'
+# Where newer versions of the kit come from, and the key their file list
+# must be signed with. A version is taken only when that signature is good,
+# every file matches the list, and it is newer than the one in this folder.
+UPDATE_SOURCE='https://raw.githubusercontent.com/frederikhejlskov/reels-kit'
+UPDATE_KEY='ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFaLTMlnOSEGPtIk0bQYk7OUxcsAqZjbl9i0RnhEVW7S'
+export HOMEBREW_NO_INSTALL_UPGRADE=1 HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1 HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1
+export HYPERFRAMES_NO_TELEMETRY=1
+
+fresh() {
+  local -a clean_env=("HOME=$HOME" "USER=${USER:-$(id -un)}" "LOGNAME=${LOGNAME:-${USER:-$(id -un)}}" "TERM=xterm-256color")
+  if [ "${CLAUDE_CONFIG_DIR+x}" ]; then clean_env+=("CLAUDE_CONFIG_DIR=$CLAUDE_CONFIG_DIR"); fi
+  env -i "${clean_env[@]}" /bin/zsh -ilc "$@"
+}
+
+missing=0
+# Every check runs in a fresh login shell: it proves a new Terminal window works.
+line() { # line "<name>" "<zsh test>"
+  if fresh "$2" "${@:3}" >/dev/null 2>&1; then echo "OK    $1"; else echo "MISS  $1: install or fix $1, then rerun setup.sh --check"; missing=1; fi
+}
+# The same tests are used during setup and in a new login shell.
+INSTAGRAM_MARKETPLACE='Jakeschincariol/instagram-agent-skill#d03c56bb598be770c60b201f94237e5d1a4268a6'
+HYPERFRAMES_MARKETPLACE='heygen-com/hyperframes#58ef24c6d88634ff42f60b0435f3685ccfa2d459'
+# Palmier Pro is downloaded from Palmier's own release page, never copied
+# from this kit, and must be signed by Palmier, Inc. and notarized by Apple.
+PALMIER_URL=https://github.com/palmier-io/palmier-pro/releases/download/v0.12.1/PalmierPro.dmg
+PALMIER_SHA=05d96a0130a5da21ee40fbc0591f3a7eb1746c841fde32769948c0d839e40789
+PALMIER_TEAM=MMFLRC7562
+PALMIER_SKILLS=040e82ffab6f616aec5d1ed4541a1d0260a95613
+macos_major() { local v; v="$(sw_vers -productVersion 2>/dev/null)"; echo "${v%%.*}"; }
+palmier_fits() { [ "$(macos_major)" -ge 26 ] 2>/dev/null && [ "$(sysctl -n hw.optional.arm64 2>/dev/null)" = 1 ]; }
+palmier_app() { # prints the installed app's path
+  local a
+  for a in "${PALMIER_APPS_DIR:-/Applications}/PalmierPro.app" "$HOME/Applications/PalmierPro.app"; do
+    [ -d "$a" ] && { echo "$a"; return 0; }
+  done
+  return 1
+}
+palmier_signed() { # palmier_signed <app>: Palmier's own app, unchanged, notarized
+  codesign --verify --deep --strict "$1" 2>/dev/null || return 1
+  [ "$(codesign -dv "$1" 2>&1 | sed -n 's/^TeamIdentifier=//p')" = "$PALMIER_TEAM" ] || return 1
+  spctl -a -t exec "$1" 2>/dev/null
+}
+palmier_drop() { # palmier_drop <work>: unmount, then remove the folder only once nothing is mounted in it
+  hdiutil detach -quiet "$1/mnt" 2>/dev/null || hdiutil detach -force -quiet "$1/mnt" 2>/dev/null
+  [ -d "$1/mnt/PalmierPro.app" ] || rm -rf "$1"
+}
+palmier_skills_ok() { [ "$(cat "$REELS/.tools/palmier-skills/.commit" 2>/dev/null)" = "$PALMIER_SKILLS" ] && [ -f "$REELS/.tools/palmier-skills/skills/color-grading/SKILL.md" ]; }
+AUTO_SHA=50e7a86f7566389313a07f991dcb7a8c4d1a4dbae7d37bc00f17f59d969877d1
+DEMUCS_SHA=d9fa14133cfcc034a6758923bb3a8ca9f8dfd0b582134643bbf83f72c17576dd
+DEMUCS_YAML_SHA=239c445d0b14454d541ad8bd9bb271c9e536d267e8a4625208744cbb2e7bb66c
+DEMUCS_REV=cbc8a9b1a87023b7fd74e7b3412e6321c0eab003
+REMBG_SHA=60920e99c45464f2ba57bee2ad08c919a52bbf852739e96947fbb4358c0d964a
+scene_test='test -x "$1/.tools/venv/bin/scenedetect" && "$2" scenedetect version'
+auto_test='test -x "$1/.tools/venv/bin/auto-editor" && test -x "$1/.tools/venv/bin/python" && p="$("$1/.tools/venv/bin/python" -c "import auto_editor,os;print(os.path.dirname(auto_editor.__file__))")/bin/auto-editor" && test -x "$p" && test "$(shasum -a 256 "$p" | cut -d " " -f 1)" = "$4" && "$2" auto-editor --version'
+vidstab_test='test -x "$1/.tools/ffmpeg-vidstab/bin/ffmpeg-vidstab" && { out="$("$2" "$1/.tools/ffmpeg-vidstab/bin/ffmpeg-vidstab" -hide_banner -filters 2>&1)" && printf "%s\n" "$out" | grep vidstabtransform >/dev/null || { printf "%s\n" "$out"; false; }; }'
+color_test='test -x "$1/.tools/venv/bin/color-matcher" && "$2" color-matcher -h'
+rembg_test='test -x "$1/.tools/venv/bin/rembg" && "$2" rembg --help && { test "$3" = packages || { p="$1/.tools/models/models/isnet-general-use/isnet-general-use.onnx" && test -f "$p" && test "$(shasum -a 256 "$p" | cut -d " " -f 1)" = "$5"; }; }'
+rife_test='test -x "$1/.tools/rife/rife-ncnn-vulkan" && test -f "$1/.tools/rife/rife-v4.6/flownet.bin" && test -f "$1/.tools/rife/rife-v4.6/flownet.param" && { out="$("$2" rife-ncnn-vulkan -h 2>&1)"; printf "%s\n" "$out" | grep -qi usage || { printf "%s\n" "$out"; false; }; }'
+esrgan_test='test -x "$1/.tools/realesrgan/realesrgan-ncnn-vulkan" && test -f "$1/.tools/realesrgan/models/realesrgan-x4plus.bin" && test -f "$1/.tools/realesrgan/models/realesrgan-x4plus.param" && { out="$("$2" realesrgan-ncnn-vulkan -h 2>&1)"; printf "%s\n" "$out" | grep -qi usage || { printf "%s\n" "$out"; false; }; }'
+demucs_test='test -x "$1/.tools/venv/bin/demucs" && "$2" demucs --help && { test "$3" = packages || { p="$1/.tools/models/hub/models--adefossez--HTDemucs/blobs/$6" && y="$1/.tools/models/hub/models--adefossez--HTDemucs/snapshots/$8/htdemucs.yaml" && test -f "$p" && test "$(shasum -a 256 "$p" | cut -d " " -f 1)" = "$6" && test -f "$y" && test "$(shasum -a 256 "$y" | cut -d " " -f 1)" = "$7" && "$2" env HF_HUB_OFFLINE=1 python -c "from huggingface_hub import hf_hub_download as d; [d(\"adefossez/HTDemucs\", f) for f in (\"htdemucs.yaml\",\"955717e8.safetensors\")]"; }; }'
+librosa_test='test -x "$1/.tools/venv/bin/python" && "$2" python -c "import librosa"'
+video_ok() {
+  local output
+  if output="$(fresh "$1" _ "$REELS" "$2" "${3:-full}" "$AUTO_SHA" "$REMBG_SHA" "$DEMUCS_SHA" "$DEMUCS_YAML_SHA" "$DEMUCS_REV" 2>&1)"; then return 0; fi
+  [ -z "$output" ] || printf '%s\n' "$output" | tail -n 15
+  return 1
+}
+video_line() {
+  if video_ok "$2" "$REELS/.tools/run"; then echo "OK    $1"; else echo "MISS  $1: install or fix $1, then rerun setup.sh --check"; missing=1; return 1; fi
+}
+
+# plugin_field <id> <field>: prints the field of the plugin enabled for this
+# exact folder at project scope; exits 1 if there is no such install.
+resolve_claude() {
+  # Startup files may print to stdout, so the command's path is the last line.
+  claude_bin="$(fresh 'printf "\n"; whence -p claude' | tail -n 1)" || return 1
+  [ -n "$claude_bin" ] && [ -x "$claude_bin" ]
+}
+plugin_field() {
+  local json
+  [ -n "${claude_bin:-}" ] || return 1
+  if [ "${1:-}" = "--quiet-errors" ]; then
+    shift
+    json="$(cd "$REELS" && "$claude_bin" plugin list --json 2>/dev/null)" || return 1
+  else
+    json="$(cd "$REELS" && "$claude_bin" plugin list --json)" || return 1
+  fi
+  printf '%s' "$json" | node -e '
+    const [id, dir, field] = process.argv.slice(1); let s = "";
+    process.stdin.on("data", d => s += d).on("end", () => {
+      let list = []; try { list = JSON.parse(s); } catch { process.exit(1); }
+      if (!Array.isArray(list)) process.exit(1);
+      const p = list.find(p => p.id === id && p.scope === "project" && p.projectPath === dir && p.enabled === true);
+      if (!p) process.exit(1);
+      console.log(p[field]); process.exit(0);
+    });' "$1" "$REELS" "$2" 2>/dev/null
+}
+
+# A folder the creator moves into this one may carry its own CLAUDE.md,
+# AGENTS.md or rules, which Claude would load as instructions next to the
+# kit's. This setting keeps them out, so they stay notes. It also keeps out
+# the CLAUDE.md and AGENTS.md that HyperFrames copies into each project,
+# which the kit's own rules replace. fence check|write
+# ponytail: the folder path is used as a glob as it is; a path with * ? [ {
+# in it would need escaping.
+fence() {
+  /usr/bin/python3 - "$REELS" "$1" <<'PY'
+import json, os, sys
+reels, mode = sys.argv[1], sys.argv[2]
+want = [os.path.join(reels, "*", "**", name) for name in
+        ("CLAUDE.md", "CLAUDE.local.md", "AGENTS.md", ".claude/rules/**")]
+path = os.path.join(reels, ".claude", "settings.json")
+try:
+    with open(path) as f:
+        data = json.load(f)
+except FileNotFoundError:
+    data = {}
+have = data.get("claudeMdExcludes") or []
+if mode == "check":
+    sys.exit(0 if all(w in have for w in want) else 1)
+data["claudeMdExcludes"] = have + [w for w in want if w not in have]
+os.makedirs(os.path.dirname(path), exist_ok=True)
+with open(path + ".partial", "w") as f:
+    json.dump(data, f, indent=2)
+    f.write("\n")
+os.replace(path + ".partial", path)
+PY
+}
+
+check() {
+  missing=0
+  [ -d "$REELS" ] && REELS="$(cd "$REELS" && pwd -P)"
+  line "Homebrew" "command -v brew"
+  line "Node 22+" "node -e 'process.exit(+process.versions.node.split(\".\")[0] < 22 ? 1 : 0)'"
+  line "FFmpeg" "command -v ffmpeg"
+  line "FFprobe" "command -v ffprobe"
+  line "Python 3" "python3 -c 1"
+  line "whisper.cpp" "command -v whisper-cli"
+  line "Google Chrome" "test -d '/Applications/Google Chrome.app' || test -d \"\$HOME/Applications/Google Chrome.app\""
+  line "Claude Code" "command -v claude"
+  if fresh 'head -1 "$1" | grep -qF "$2"' _ "$REELS/CLAUDE.md" "$MARKER" >/dev/null 2>&1; then
+    echo "OK    Reels instruction file"; else echo "MISS  Reels instruction file: put the kit's CLAUDE.md in this folder"; missing=1; fi
+  if [ -s "$REELS/tools/script/script.md" ]; then echo "OK    Script method"; else echo "MISS  Script method: copy the kit's tools folder into this folder"; missing=1; fi
+  if [ -e "$REELS/.kit-update-pending" ]; then echo "MISS  Kit update: run setup.sh to finish it"; missing=1; fi
+  resolve_claude >/dev/null 2>&1 || claude_bin=''
+  if plugin_field --quiet-errors instagram-agent@instagram-agent-skill id >/dev/null; then echo "OK    Instagram skills"; else echo "MISS  Instagram skills"; missing=1; fi
+  local hf; hf="$(plugin_field --quiet-errors hyperframes@hyperframes installPath)"
+  if [ -n "$hf" ] && (cd "$REELS" && node "$hf/skills/hyperframes/scripts/plugin-cli.mjs" --version) >/dev/null 2>&1; then
+    echo "OK    HyperFrames"; else echo "MISS  HyperFrames"; missing=1; fi
+  if fence check 2>/dev/null; then echo "OK    Other folders' instructions kept out"
+  else echo "MISS  Other folders' instructions kept out: run setup.sh"; missing=1; fi
+  if [ "$(sysctl -n hw.optional.arm64 2>/dev/null)" != 1 ]; then
+    echo "MISS  Video tools: The video tools need a Mac with Apple silicon (M1 or newer)."
+    missing=1
+  else
+    video_line "PySceneDetect" "$scene_test"
+    video_line "Auto-Editor" "$auto_test"
+    video_line "vid.stab" "$vidstab_test"
+    video_line "color-matcher" "$color_test"
+    video_line "rembg" "$rembg_test"
+    video_line "RIFE" "$rife_test"
+    video_line "Real-ESRGAN" "$esrgan_test"
+    video_line "Demucs" "$demucs_test"
+    video_line "librosa" "$librosa_test"
+  fi
+  if palmier_fits; then
+    local app; app="$(palmier_app)"
+    if [ -z "$app" ]; then echo "LATER Palmier Pro: not installed yet, so reels are edited with HyperFrames; run setup.sh to try again"
+    elif palmier_signed "$app"; then echo "OK    Palmier Pro"
+    else echo "SKIP  Palmier Pro: the copy in $(dirname "$app") could not be verified as Palmier's own app, so reels are edited with HyperFrames"; fi
+    if palmier_skills_ok; then echo "OK    Palmier editing guides"; else echo "LATER Palmier editing guides: not installed yet; run setup.sh to try again"; fi
+  else
+    echo "SKIP  Palmier Pro: it needs macOS 26 or newer on Apple silicon, so reels are edited with HyperFrames on this Mac"
+  fi
+  return $missing
+}
+
+if [ "${1:-}" = "--check" ]; then check; exit $?; fi
+
+# One setup at a time: a second copy would download and install twice.
+# The lock is a link whose target is the running setup's process ID, made in one step.
+lock="$REELS/.setup.lock"
+mkdir -p "$REELS" || exit 1
+setup_running() { # setup_running <pid>: that process exists and is a setup.sh
+  [ -n "$1" ] && kill -0 "$1" 2>/dev/null && ps -p "$1" -o command= 2>/dev/null | grep -qF setup.sh
+}
+
+# --update: replace the kit's own files (CLAUDE.md, README.md, setup.sh and
+# tools/) with a newer signed version. Never touches anything else in the
+# folder. Prints one line starting UPDATED or UPDATE; a full setup run then
+# finishes the update (the check reports it until that run ends).
+kit_version() { sed -n '1s/.*reels-kit instructions v\([0-9][0-9]*\).*/\1/p' "$1" 2>/dev/null; }
+kit_path_ok() { # only the kit's own files, never a path that leaves them
+  case "$1" in
+    CLAUDE.md|README.md|setup.sh) return 0 ;;
+    *..*|*//*|*[!A-Za-z0-9._/-]*|*/) return 1 ;;
+    tools/?*) return 0 ;;
+  esac
+  return 1
+}
+upd_get() { curl -fsSL --connect-timeout 5 --max-time 60 --max-filesize 5000000 "$1" -o "$2" 2>/dev/null; }
+update() {
+  local have want work notes sum path line refused
+  refused="UPDATE refused: the newer version could not be checked as the kit's own, so nothing changed."
+  REELS="$(cd "$REELS" && pwd -P)" || return 1
+  if setup_running "$(readlink "$lock" 2>/dev/null)"; then echo "UPDATE skipped: setup is running."; return 0; fi
+  rm -rf "$REELS"/.kit-update.??????
+  have="$(kit_version "$REELS/CLAUDE.md")"; have="${have:-0}"
+  work="$(mktemp -d "$REELS/.kit-update.XXXXXX")" || { echo "UPDATE skipped: could not write in this folder."; return 0; }
+  upd_get "$UPDATE_SOURCE/main/kit.manifest" "$work/manifest" && upd_get "$UPDATE_SOURCE/main/kit.manifest.sig" "$work/manifest.sig" || {
+    echo "UPDATE skipped: the update address could not be reached."; return 0; }
+  echo "reels-kit $UPDATE_KEY" > "$work/allowed"
+  /usr/bin/ssh-keygen -Y verify -f "$work/allowed" -I reels-kit -n reels-kit-update -s "$work/manifest.sig" < "$work/manifest" >/dev/null 2>&1 || { echo "$refused"; return 0; }
+  want="$(sed -n '1s/^reels-kit \([0-9][0-9]*\)$/\1/p' "$work/manifest")"
+  [ -n "$want" ] || { echo "$refused"; return 0; }
+  [ "$want" -gt "$have" ] || { echo "UPDATE none: this is the newest version."; return 0; }
+  notes="$(sed -n '2s/^notes //p' "$work/manifest")"
+  tail -n +3 "$work/manifest" > "$work/list"
+  grep -q '  CLAUDE\.md$' "$work/list" && grep -q '  setup\.sh$' "$work/list" || { echo "$refused"; return 0; }
+  mkdir "$work/new" || return 1
+  while IFS= read -r line; do
+    sum="${line%%  *}"; path="${line#*  }"
+    [ "${#sum}" -eq 64 ] && kit_path_ok "$path" || { echo "$refused"; return 0; }
+    mkdir -p "$work/new/$(dirname "$path")" || return 1
+    upd_get "$UPDATE_SOURCE/v$want/$path" "$work/new/$path" || { echo "UPDATE skipped: the download stopped. Nothing changed."; return 0; }
+    [ "$(shasum -a 256 "$work/new/$path" | cut -d' ' -f1)" = "$sum" ] || { echo "$refused"; return 0; }
+  done < "$work/list"
+  [ "$(kit_version "$work/new/CLAUDE.md")" = "$want" ] && /bin/bash -n "$work/new/setup.sh" 2>/dev/null || { echo "$refused"; return 0; }
+  : > "$REELS/.kit-update-pending" || { echo "UPDATE skipped: could not write in this folder."; return 0; }
+  # Kit files the newer version no longer has: only ones an earlier update listed.
+  if [ -f "$REELS/.kit.manifest" ]; then
+    tail -n +3 "$REELS/.kit.manifest" > "$work/old"
+    while IFS= read -r line; do
+      path="${line#*  }"
+      kit_path_ok "$path" && ! cut -c67- "$work/list" | grep -qxF "$path" && rm -f "$REELS/$path"
+    done < "$work/old"
+  fi
+  # CLAUDE.md carries the version, so it goes last: a stopped update runs again.
+  { grep -v '  CLAUDE\.md$' "$work/list"; grep '  CLAUDE\.md$' "$work/list"; } > "$work/order"
+  while IFS= read -r line; do
+    path="${line#*  }"
+    mkdir -p "$REELS/$(dirname "$path")" && mv -f "$work/new/$path" "$REELS/$path" || {
+      echo "UPDATE stopped: could not replace $path. Run it again."; return 1; }
+  done < "$work/order"
+  cp "$work/manifest" "$REELS/.kit.manifest"
+  echo "UPDATED version $have to $want: $notes"
+}
+if [ "${1:-}" = "--update" ]; then update; code=$?; rm -rf "$REELS"/.kit-update.??????; exit $code; fi
+
+if ! ln -s "$$" "$lock" 2>/dev/null; then
+  setup_running "$(readlink "$lock" 2>/dev/null)" && { echo "Setup is already running. Wait for it to finish."; exit 4; }
+  rm -f "$lock"
+  ln -s "$$" "$lock" 2>/dev/null || { echo "Setup is already running. Wait for it to finish."; exit 4; }
+fi
+pkg_dir=''
+clean_palmier_temp() { # unmount a half-finished Palmier install before removing its folder
+  local d
+  for d in "$REELS/.tools"/palmier.??????; do
+    [ -d "$d" ] && palmier_drop "$d"
+  done
+  rm -rf "$REELS/.tools"/palmier-skills.?????? "${PALMIER_APPS_DIR:-/Applications}/.PalmierPro.app.partial" "$HOME/Applications/.PalmierPro.app.partial"
+}
+clean_video_temp() {
+  local dir
+  [ -n "${TOOLS:-}" ] || return 0
+  for dir in "$TOOLS"/*-build.* "$TOOLS"/demucs.*; do
+    [ ! -d "$dir" ] || rm -rf "$dir"
+  done
+  rm -f "$TOOLS/.run.partial" "$TOOLS/ffmpeg-build.log"
+}
+cleanup() { clean_video_temp; clean_palmier_temp; rm -f "$lock"; [ -z "$pkg_dir" ] || rm -rf "$pkg_dir"; }
+trap cleanup EXIT
+
+download() { curl -fsSL --retry 3 --connect-timeout 30 --speed-limit 1024 --speed-time 60 "$@"; }
+sha_ok() {
+  local actual
+  actual="$(shasum -a 256 "$1" 2>/dev/null)" || { rm -f "$1"; return 1; }
+  if [ "${actual%% *}" = "$2" ]; then return 0; fi
+  rm -f "$1"
+  return 1
+}
+fetch_pinned() {
+  local url="$1" hash="$2" dest="$3" tool="$4"
+  download "$url" -o "$dest" || { rm -f "$dest"; echo "$tool download failed. Check the internet connection, then run setup again."; return 1; }
+  sha_ok "$dest" "$hash" || { echo "$tool: The download did not match the expected file. Nothing was installed. Run setup again later."; return 1; }
+}
+fetch_run() { # fetch_run <url>: download to a file first so a failed download stops here
+  local f; f="$(mktemp)" || return 1
+  download "$1" -o "$f" || { rm -f "$f"; return 1; }
+  /bin/bash "$f"; local c=$?; rm -f "$f"; return $c
+}
+profile_add() { # profile_add <command> <line>: only when a fresh login shell can't find <command>
+  fresh 'command -v "$1"' _ "$1" >/dev/null 2>&1 || grep -qsF "$2" "$HOME/.zprofile" || echo "$2" >> "$HOME/.zprofile"
+}
+has() { fresh 'command -v "$1"' _ "$1" >/dev/null 2>&1; } # same test as the check
+
+# Homebrew ships ready-made packages only for recent macOS versions. On an
+# older macOS it builds each one from source: hours at full load, and more
+# memory than a small Mac has. brew_ready is true when every name given has
+# a ready-made package for this Mac, or when that cannot be told.
+brew_ready() {
+  local json
+  json="$(brew info --json=v2 --formula "$@" 2>/dev/null)" || return 0
+  printf '%s' "$json" | /usr/bin/python3 -c 'import json, sys
+try:
+    formulae = json.load(sys.stdin)["formulae"]
+    missing = any(not ((f.get("bottle") or {}).get("stable") or {}).get("files") for f in formulae)
+except Exception:
+    sys.exit(0)
+sys.exit(1 if missing else 0)' 2>/dev/null
+  [ $? -ne 1 ]   # only a clear "no ready-made package" blocks; a failed check does not
+}
+brew_install() { # Refuse installs that would change an installed package or build from source.
+  local formula kind deps outdated installed dep item blocked=""
+  formula="${@: -1}"
+  kind=--formula
+  [ "${1:-}" = --cask ] && kind=--cask
+  installed="$(brew list "$kind" --versions)" || {
+    echo "Could not check installed packages. Check Homebrew, then rerun setup.sh."
+    return 1
+  }
+  while IFS= read -r item; do
+    item="${item%% *}"
+    if [ "$item" = "$formula" ] || [ "${item##*/}" = "${formula##*/}" ]; then
+      # Installed but its command is missing: an interrupted install left it
+      # unlinked. Linking changes no version.
+      if [ "$kind" = --formula ]; then brew link "$formula"; return; fi
+      printf 'Cannot install %s: it is already installed. Reinstall it yourself, then rerun setup.sh.\n' "$formula"
+      return 1
+    fi
+  done <<< "$installed"
+  deps="$(brew deps "$kind" "$formula")" || {
+    echo "Could not check dependencies for $formula. Check Homebrew, then rerun setup.sh."
+    return 1
+  }
+  outdated="$(brew outdated --formula --quiet)" || {
+    echo "Could not check outdated packages. Check Homebrew, then rerun setup.sh."
+    return 1
+  }
+  while IFS= read -r dep; do
+    [ -n "$dep" ] || continue
+    while IFS= read -r item; do
+      [ -n "$item" ] || continue
+      if [ "$dep" = "$item" ] || [ "${dep##*/}" = "${item##*/}" ]; then
+        blocked="${blocked}${blocked:+, }$dep (outdated dependency)"
+        break
+      fi
+    done <<< "$outdated"
+  done <<< "$deps"
+  if [ -n "$blocked" ]; then
+    printf 'Cannot install %s without changing installed packages: %s. Update or install them yourself, then rerun setup.sh.\n' "$formula" "$blocked"
+    return 1
+  fi
+  if [ "$kind" = --formula ] && ! brew_ready "$formula" $deps; then
+    printf 'This version of macOS is too old for the ready-made %s: installing it would mean hours of building on this Mac, so it was not installed. Update macOS (System Settings, General, Software Update), then run setup again.\n' "$formula"
+    return 1
+  fi
+  brew install "$@"
+}
+
+BREW_BIN="${REELS_BREW_BIN:-/opt/homebrew/bin/brew}" # override only for tests
+have_clt() { xcode-select -p >/dev/null 2>&1 && [ -x "$(xcode-select -p)/usr/bin/git" ]; }
+have_brew() { command -v brew >/dev/null || [ -x "$BREW_BIN" ]; }
+wait_for_clt() { # true once installed; false after 8 minutes or once the window is gone
+  local start=$SECONDS
+  until have_clt; do
+    [ $((SECONDS - start)) -ge 480 ] && return 1
+    if [ $((SECONDS - start)) -ge 30 ] && ! pgrep -f "Install Command Line Developer Tools" >/dev/null 2>&1; then return 1; fi
+    sleep 5
+  done
+}
+
+# Homebrew signs its Mac installer with a maintainer's Developer ID; this team
+# is the one Homebrew's own release build checks for (Homebrew/BrewUI
+# build.yml). If Homebrew changes it, setup stops with exit 5 and this kit
+# needs the new ID.
+HOMEBREW_TEAM=927JGANW46
+verify_pkg() { # 0 Homebrew's package, 1 not signed and notarized, 2 another signer
+  local sig
+  sig="$(pkgutil --check-signature "$1" 2>&1)" || return 1
+  grep -qF 'Status: signed by a developer certificate issued by Apple for distribution' <<<"$sig" || return 1
+  spctl -a -t install "$1" >/dev/null 2>&1 || return 1
+  grep -qE "^ +1\. Developer ID Installer: .*\($HOMEBREW_TEAM\)\$" <<<"$sig" || return 2
+}
+# Runs as root: copies the package where this user cannot change it, checks it
+# again there, then installs that copy.
+ROOT_INSTALL='d=$(/usr/bin/mktemp -d /private/var/tmp/reels-brew.XXXXXX) || exit 1
+trap "/bin/rm -rf \"$d\"" EXIT
+/bin/cp "$1" "$d/h.pkg" || exit 1
+s=$(/usr/sbin/pkgutil --check-signature "$d/h.pkg") || exit 1
+case "$s" in *"issued by Apple for distribution"*) ;; *) exit 1 ;; esac
+printf "%s\n" "$s" | /usr/bin/grep -Eq "^ +1\. Developer ID Installer: .*\($2\)\$" || exit 1
+/usr/sbin/spctl -a -t install "$d/h.pkg" || exit 1
+/usr/sbin/installer -pkg "$d/h.pkg" -target /'
+
+# Stop before installing anything on a Mac the tools cannot run on. Homebrew
+# has ready-made packages only for recent macOS versions; on an older one it
+# would build everything from source for hours.
+mac_fits() {
+  [ "$(sysctl -n hw.optional.arm64 2>/dev/null)" = 1 ] || { echo "The kit needs a Mac with an Apple chip (M1 or newer). Nothing was installed."; return 1; }
+  [ "$(macos_major)" -ge 15 ] 2>/dev/null || { echo "This Mac needs macOS 15 or newer. Nothing was installed. Update macOS (System Settings, General, Software Update), then run setup again."; return 1; }
+}
+# Written before anything can stop setup, so a Mac that setup refuses still
+# keeps other folders' instructions out. Needs Apple's python3, which exists
+# once the command line tools do.
+have_clt && ( REELS="$(cd "$REELS" && pwd -P)" && fence write ) 2>/dev/null
+mac_fits >/dev/null 2>&1 || rm -f "$REELS/.kit-update-pending" # nothing to finish on a Mac setup refuses
+mac_fits || exit 1
+
+# Apple's developer tools give git, which plugin installs need.
+if ! have_clt; then
+  echo "Installing Apple's command line tools..."
+  xcode-select --install >/dev/null 2>&1
+  wait_for_clt || {
+    echo "ACTION: A window asks to install the command line developer tools. Click Install, then Agree, and type your Mac password if asked. It takes 5 to 15 minutes. When the window says the software was installed, click Done and say done. If no such window is open, just say done."
+    exit 3; }
+fi
+
+if ! have_brew; then
+  if [ "$(uname -m)" = arm64 ]; then
+    pkg_dir="$(mktemp -d)" && pkg="$pkg_dir/Homebrew.pkg" &&
+      download -o "$pkg" https://github.com/Homebrew/brew/releases/latest/download/Homebrew.pkg || {
+      echo "Could not download Homebrew. Check the internet connection, then run setup again."; exit 1; }
+    verify_pkg "$pkg"; case $? in
+      0) ;;
+      2) echo "The downloaded Homebrew installer is signed by someone other than Homebrew's known signer. Nothing was installed. The kit may need an update: ask for a new copy of the kit."; exit 5 ;;
+      *) echo "The downloaded Homebrew installer is not Homebrew's signed package. Nothing was installed. Run setup again later."; exit 1 ;;
+    esac
+    echo "Installing Homebrew. A window asks for this Mac's password..."
+    osascript - "$ROOT_INSTALL" "$pkg" "$HOMEBREW_TEAM" >/dev/null 2>&1 <<'APPLESCRIPT'
+on run argv
+  do shell script "/bin/sh -c " & quoted form of item 1 of argv & " _ " & quoted form of item 2 of argv & " " & quoted form of item 3 of argv with prompt "Reels setup is installing Homebrew, the free tool installer." with administrator privileges
+end run
+APPLESCRIPT
+    if ! have_brew; then
+      open "$pkg"
+      pkg_dir='' # keep the package for the open installer window
+      echo "ACTION: A Homebrew installer window is open. Click Continue, Continue, Agree, then Install. Type your Mac password (or the Mac owner's name and password) and click Install Software. When it says the installation was successful, click Close and say done."
+      exit 3
+    fi
+  elif [ -t 0 ]; then
+    echo "Installing Homebrew (asks for this Mac's password)..."
+    fetch_run https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh || { echo "Homebrew install failed. Fix the error above, then rerun setup.sh"; exit 1; }
+  else
+    echo 'ACTION: This Mac needs Homebrew installed from Terminal once. Press Command and Space, type Terminal, press Return. Copy this whole line, paste it into Terminal and press Return:'
+    echo '/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'
+    echo 'ACTION: Type your Mac password when asked (nothing shows while you type) and press Return. Press Return again if asked. When Terminal says "Installation successful", close Terminal and say done.'
+    exit 3
+  fi
+fi
+[ -n "$pkg_dir" ] && { rm -rf "$pkg_dir"; pkg_dir=''; }
+[ -x "$BREW_BIN" ] && eval "$("$BREW_BIN" shellenv)"
+brew_path="$(command -v brew)" || { echo "Homebrew was not found. Install Homebrew, then rerun setup.sh"; exit 1; }
+printf -v brew_quoted '%q' "$brew_path"
+profile_add brew "eval \"\$("$brew_quoted" shellenv)\""
+# Use the same PATH a new Terminal (and the check) uses, so what is found is what runs.
+login_path="$(fresh 'printf "\n%s" "$PATH"' 2>/dev/null | tail -n 1)" && [ -n "$login_path" ] && export PATH="$login_path:$PATH"
+
+ensure() { # ensure <command> <formula>: install the formula only if the command is missing
+  has "$1" && return
+  brew_install "$2" || return 1
+  has "$1" || { printf '%s is installed in a version without %s. Update it yourself (brew upgrade %s), then rerun setup.sh.\n' "$2" "$1" "$2"; return 1; }
+}
+
+ensure node node || exit 1
+fresh "node -e 'process.exit(+process.versions.node.split(\".\")[0] < 22 ? 1 : 0)'" >/dev/null 2>&1 || { echo "Node is unavailable or older than 22. Update Node yourself, then rerun setup.sh"; exit 1; }
+ensure ffmpeg ffmpeg || exit 1
+ensure whisper-cli whisper.cpp || exit 1
+[ -d "/Applications/Google Chrome.app" ] || [ -d "$HOME/Applications/Google Chrome.app" ] || brew_install --cask google-chrome || exit 1
+
+if ! has claude; then
+  fetch_run https://claude.ai/install.sh || { echo "Claude Code install failed. Fix the error above, then rerun setup.sh"; exit 1; }
+fi
+export PATH="$HOME/.local/bin:$PATH"
+profile_add claude 'export PATH="$HOME/.local/bin:$PATH"'
+
+mkdir -p "$REELS/reels" "$REELS/scripts" "$REELS/setup/best-reels" "$REELS/setup/audience" "$REELS/setup/brand" "$REELS/sources" || exit 1
+REELS="$(cd "$REELS" && pwd -P)"
+[ -f "$REELS/CLAUDE.md" ] || cp "$KIT/CLAUDE.md" "$REELS/CLAUDE.md" || { echo "The kit's CLAUDE.md is missing. Download the kit again."; exit 1; }
+
+cd "$REELS" || exit 1
+resolve_claude || { echo "Claude Code was not found in a new Terminal. Fix its installation, then rerun setup.sh"; exit 1; }
+"$claude_bin" plugin marketplace add --scope project "$INSTAGRAM_MARKETPLACE" || { echo "Instagram skills marketplace setup failed. Fix the error above, then rerun setup.sh"; exit 1; }
+if plugin_field instagram-agent@instagram-agent-skill id >/dev/null; then
+  "$claude_bin" plugin update --scope project instagram-agent@instagram-agent-skill || { echo "Instagram skills update failed. Fix the error above, then rerun setup.sh"; exit 1; }
+else
+  "$claude_bin" plugin install --scope project instagram-agent@instagram-agent-skill || { echo "Instagram skills install failed. Fix the error above, then rerun setup.sh"; exit 1; }
+fi
+"$claude_bin" plugin marketplace add --scope project "$HYPERFRAMES_MARKETPLACE" || { echo "HyperFrames marketplace setup failed. Fix the error above, then rerun setup.sh"; exit 1; }
+if plugin_field hyperframes@hyperframes id >/dev/null; then
+  "$claude_bin" plugin update --scope project hyperframes@hyperframes || { echo "HyperFrames update failed. Fix the error above, then rerun setup.sh"; exit 1; }
+else
+  "$claude_bin" plugin install --scope project hyperframes@hyperframes || { echo "HyperFrames install failed. Fix the error above, then rerun setup.sh"; exit 1; }
+fi
+hf="$(plugin_field hyperframes@hyperframes installPath)" || { echo "HyperFrames was not found. Fix its installation, then rerun setup.sh"; exit 1; }
+fence write || { echo "Could not update this folder's Claude settings (.claude/settings.json). Fix or remove that file, then rerun setup.sh"; exit 1; }
+node "$hf/skills/hyperframes/scripts/plugin-cli.mjs" telemetry disable || { echo "Could not turn off HyperFrames usage reporting. Fix the error above, then rerun setup.sh"; exit 1; }
+doctor_output="$(node "$hf/skills/hyperframes/scripts/plugin-cli.mjs" doctor --json)"; doctor_status=$?
+printf '%s\n' "$doctor_output"
+[ "$doctor_status" -eq 0 ] || { echo "HyperFrames check failed (exit $doctor_status). Fix the error above, then rerun setup.sh"; exit 1; }
+# Doctor JSON reports optional failures without a nonzero exit.
+printf '%s' "$doctor_output" | node -e '
+  let s = ""; process.stdin.on("data", d => s += d).on("end", () => {
+    let report; try { report = JSON.parse(s); } catch { console.error("Invalid doctor JSON"); process.exit(1); }
+    if (!Array.isArray(report.checks)) { console.error("Missing doctor checks"); process.exit(1); }
+    const required = ["Node.js", "FFmpeg", "FFprobe", "Chrome"];
+    const failed = required.filter(name => {
+      const matches = report.checks.filter(check => check.name === name);
+      return matches.length !== 1 || matches[0].ok !== true;
+    });
+    if (failed.length) { console.error("Required doctor checks failed or missing: " + failed.join(", ")); process.exit(1); }
+  });' || { echo "HyperFrames required checks failed (exit $doctor_status). Fix the errors above, then rerun setup.sh"; exit 1; }
+
+# Video tools stay inside the Reels folder.
+echo; echo "== Video tools =="
+[ "$(sysctl -n hw.optional.arm64 2>/dev/null)" = 1 ] || { echo "The video tools need a Mac with Apple silicon (M1 or newer)."; exit 1; }
+TOOLS="$REELS/.tools"
+export UV_PYTHON_INSTALL_DIR="$TOOLS/python" UV_CACHE_DIR="$TOOLS/cache" UV_PYTHON_PREFERENCE=only-managed
+export TORCH_HOME="$TOOLS/models" HF_HOME="$TOOLS/models" U2NET_HOME="$TOOLS/models"
+mkdir -p "$TOOLS" || { echo "Could not create the video tools folder. Run setup again."; exit 1; }
+clean_video_temp
+RUN="$TOOLS/.run.partial"
+cp "$KIT/tools/run" "$RUN" && chmod 755 "$RUN" || { echo "Could not prepare the video tools launcher. If this folder has no tools folder, copy it from the kit, then run setup again."; exit 1; }
+ensure uv uv || exit 1
+uv_list="$(uv python list 3.12.13 --only-downloads --no-config 2>/dev/null)" &&
+  [ -n "$uv_list" ] && uv venv --help --no-config 2>/dev/null | grep -- --clear >/dev/null || {
+  echo "uv is installed in a version without the required Python 3.12.13 or venv --clear support. Update uv yourself, then rerun setup.sh."
+  exit 1
+}
+brew list --versions libvidstab >/dev/null 2>&1 || brew_install libvidstab || exit 1
+has pkg-config || brew_install pkgconf || exit 1
+python_tools_ok() {
+  [ -x "$TOOLS/venv/bin/python" ] && [ -f "$TOOLS/venv/pyvenv.cfg" ] || return 1
+  local home python_root test
+  home="$(sed -n 's/^home[[:space:]]*=[[:space:]]*//p' "$TOOLS/venv/pyvenv.cfg")"
+  home="$(cd "$home" 2>/dev/null && pwd -P)" || return 1
+  python_root="$(cd "$TOOLS/python" 2>/dev/null && pwd -P)" || return 1
+  case "$home" in "$python_root/"*) ;; *) return 1 ;; esac
+  for test in "$scene_test" "$auto_test" "$color_test" "$rembg_test" "$demucs_test" "$librosa_test"; do
+    video_ok "$test" "$RUN" packages || return 1
+  done
+}
+if ! python_tools_ok; then
+  uv venv --no-config --clear --python 3.12.13 "$TOOLS/venv" &&
+    VIRTUAL_ENV="$TOOLS/venv" uv pip install --no-config --exclude-newer 2026-11-13T00:00:00Z 'scenedetect==0.7.3' 'color-matcher==0.6.0' 'librosa==1.0.1' 'auto-editor==29.3.1' 'demucs==4.1.0' 'rembg[cpu,cli]==2.0.87' || {
+      echo "Python video tools install failed. Run setup again."; exit 1; }
+  auto_dir="$("$TOOLS/venv/bin/python" -c 'import auto_editor,os;print(os.path.dirname(auto_editor.__file__))')" || { echo "Auto-Editor package check failed. Run setup again."; exit 1; }
+  auto_bin="$auto_dir/bin/auto-editor"
+  mkdir -p "$(dirname "$auto_bin")" || { echo "Could not create the Auto-Editor folder. Run setup again."; exit 1; }
+  fetch_pinned https://github.com/WyattBlue/auto-editor/releases/download/29.3.1/auto-editor-macos-arm64 "$AUTO_SHA" "$auto_bin" Auto-Editor || exit 1
+  chmod 755 "$auto_bin" && python_tools_ok || { echo "Python video tools check failed. Run setup again."; exit 1; }
+fi
+rembg_model="$TOOLS/models/models/isnet-general-use/isnet-general-use.onnx"
+if ! video_ok "$rembg_test" "$RUN"; then
+  mkdir -p "$(dirname "$rembg_model")" || { echo "Could not create the rembg model folder. Run setup again."; exit 1; }
+  fetch_pinned https://github.com/danielgatis/rembg/releases/download/v0.0.0/isnet-general-use.onnx "$REMBG_SHA" "$rembg_model" rembg || exit 1
+  work="$(mktemp -d "$TOOLS/rembg-build.XXXXXX")" || { echo "Could not create the rembg test folder. Run setup again."; exit 1; }
+  "$RUN" python -c 'from PIL import Image; import sys; Image.new("RGB", (8, 8), "white").save(sys.argv[1])' "$work/in.png" &&
+    "$RUN" rembg i -m isnet-general-use "$work/in.png" "$work/out.png" &&
+    [ -s "$work/out.png" ] && video_ok "$rembg_test" "$RUN" || {
+      rm -rf "$work"; echo "rembg model check failed. Run setup again."; exit 1; }
+  rm -rf "$work"
+fi
+demucs_model_setup() {
+  local cache="$TOOLS/models/hub/models--adefossez--HTDemucs"
+  local model="$TOOLS/models/hub/models--adefossez--HTDemucs/blobs/$DEMUCS_SHA"
+  local work
+  rm -rf "$cache"
+  "$RUN" env HF_HUB_OFFLINE=0 "$TOOLS/venv/bin/python" -c "from huggingface_hub import hf_hub_download as d; [d('adefossez/HTDemucs', f, revision='$DEMUCS_REV') for f in ('htdemucs.yaml', '955717e8.safetensors')]" || { echo "Demucs model download failed. Check the internet connection, then run setup again."; return 1; }
+  sha_ok "$model" "$DEMUCS_SHA" &&
+    sha_ok "$cache/snapshots/$DEMUCS_REV/htdemucs.yaml" "$DEMUCS_YAML_SHA" &&
+    [ -f "$cache/snapshots/$DEMUCS_REV/955717e8.safetensors" ] || {
+    rm -rf "$cache"
+    echo "Demucs: The download did not match the expected file. Nothing was installed. Run setup again later."
+    return 1
+  }
+  mkdir -p "$cache/refs" && printf '%s' "$DEMUCS_REV" > "$cache/refs/main" || { echo "Could not save the Demucs model reference. Run setup again."; return 1; }
+  work="$(mktemp -d "$TOOLS/demucs.XXXXXX")" || { echo "Could not create the Demucs test folder. Run setup again."; return 1; }
+  "$TOOLS/venv/bin/python" -c 'import wave,sys; w=wave.open(sys.argv[1],"wb"); w.setparams((1,2,44100,44100,"NONE","not compressed")); w.writeframes(bytes(88200)); w.close()' "$work/input.wav" || { rm -rf "$work"; echo "Could not create the Demucs test audio. Run setup again."; return 1; }
+  rm -rf "$TOOLS/models/hub/checkpoints" "$TOOLS/models/checkpoints" || { rm -rf "$work" "$cache"; echo "Could not clear the Demucs checkpoint folders. Run setup again."; return 1; }
+  local separation_status=0
+  "$RUN" env HF_HUB_OFFLINE=1 demucs --two-stems vocals -o "$work/out" "$work/input.wav" || separation_status=$?
+  if [ -n "$(find "$TOOLS/models/hub/checkpoints" "$TOOLS/models/checkpoints" -type f -print -quit 2>/dev/null)" ]; then
+    rm -rf "$work" "$cache" "$TOOLS/models/hub/checkpoints" "$TOOLS/models/checkpoints"
+    echo "Demucs did not load the pinned model and tried to download another one."
+    return 1
+  fi
+  [ "$separation_status" -eq 0 ] || { rm -rf "$work"; echo "Demucs model setup failed. Run setup again."; return 1; }
+  rm -rf "$work"
+  video_ok "$demucs_test" "$RUN" || { echo "Demucs check failed. Run setup again."; return 1; }
+}
+if ! video_ok "$demucs_test" "$RUN"; then
+  demucs_model_setup || exit 1
+fi
+mkdir -p "$TOOLS/ffmpeg-vidstab/bin" && ln -sf ffmpeg "$TOOLS/ffmpeg-vidstab/bin/ffmpeg-vidstab" || { echo "Could not create the vid.stab launcher. Run setup again."; exit 1; }
+if ! video_ok "$vidstab_test" "$RUN"; then
+  work="$(mktemp -d "$TOOLS/ffmpeg-build.XXXXXX")" || { echo "Could not create the vid.stab build folder. Run setup again."; exit 1; }
+  fetch_pinned https://ffmpeg.org/releases/ffmpeg-8.1.1.tar.xz b6863adde98898f42602017462871b5f6333e65aec803fdd7a6308639c52edf3 "$work/source.tar.xz" vid.stab || { rm -rf "$work"; exit 1; }
+  (cd "$work" && tar -xf source.tar.xz && cd ffmpeg-8.1.1 && PKG_CONFIG_PATH="$(brew --prefix)/lib/pkgconfig:$(brew --prefix libvidstab)/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}" ./configure --prefix="$TOOLS/ffmpeg-vidstab" --enable-gpl --enable-libvidstab --enable-videotoolbox --enable-audiotoolbox --disable-doc --disable-ffplay --disable-network --disable-debug && make -j"$(sysctl -n hw.ncpu)" && make install) > "$TOOLS/ffmpeg-build.log" 2>&1 || { rm -rf "$work"; echo "vid.stab build failed. Run setup again."; tail -n 20 "$TOOLS/ffmpeg-build.log"; exit 1; }
+  rm -f "$TOOLS/ffmpeg-build.log"
+  rm -rf "$work"
+  video_ok "$vidstab_test" "$RUN" || { echo "vid.stab check failed. Run setup again."; exit 1; }
+fi
+if ! video_ok "$rife_test" "$RUN"; then
+  work="$(mktemp -d "$TOOLS/rife-build.XXXXXX")" || { echo "Could not create the RIFE install folder. Run setup again."; exit 1; }
+  fetch_pinned https://github.com/nihui/rife-ncnn-vulkan/releases/download/20221029/rife-ncnn-vulkan-20221029-macos.zip 4a63a1f3c9c715773c57d2ee51df1b315ed20cd6c63103e45c483ecc4400b595 "$work/source.zip" RIFE || { rm -rf "$work"; exit 1; }
+  unzip -q "$work/source.zip" '*/rife-ncnn-vulkan' '*/rife-v4.6/*' -d "$work" &&
+    mkdir -p "$work/staged" && cp -R "$work/rife-ncnn-vulkan-20221029-macos/rife-ncnn-vulkan" "$work/rife-ncnn-vulkan-20221029-macos/rife-v4.6" "$work/staged/" && chmod 755 "$work/staged/rife-ncnn-vulkan" && rm -rf "$TOOLS/rife" && mv "$work/staged" "$TOOLS/rife" || { rm -rf "$work"; echo "RIFE install failed. Run setup again."; exit 1; }
+  rm -rf "$work"
+  video_ok "$rife_test" "$RUN" || { echo "RIFE check failed. Run setup again."; exit 1; }
+fi
+if ! video_ok "$esrgan_test" "$RUN"; then
+  work="$(mktemp -d "$TOOLS/realesrgan-build.XXXXXX")" || { echo "Could not create the Real-ESRGAN install folder. Run setup again."; exit 1; }
+  fetch_pinned https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesrgan-ncnn-vulkan-20220424-macos.zip e0ad05580abfeb25f8d8fb55aaf7bedf552c375b5b4d9bd3c8d59764d2cc333a "$work/source.zip" Real-ESRGAN || { rm -rf "$work"; exit 1; }
+  unzip -q "$work/source.zip" 'realesrgan-ncnn-vulkan' 'models/*' -d "$work" && mkdir -p "$work/staged" && cp -R "$work/realesrgan-ncnn-vulkan" "$work/models" "$work/staged/" && chmod 755 "$work/staged/realesrgan-ncnn-vulkan" && rm -rf "$TOOLS/realesrgan" && mv "$work/staged" "$TOOLS/realesrgan" || { rm -rf "$work"; echo "Real-ESRGAN install failed. Run setup again."; exit 1; }
+  rm -rf "$work"
+  video_ok "$esrgan_test" "$RUN" || { echo "Real-ESRGAN check failed. Run setup again."; exit 1; }
+fi
+publish_video_tools() {
+  local test
+  for test in "$scene_test" "$auto_test" "$vidstab_test" "$color_test" "$rembg_test" "$rife_test" "$esrgan_test" "$demucs_test" "$librosa_test"; do
+    video_ok "$test" "$RUN" || { rm -f "$TOOLS/run"; echo "Video tools final check failed. Run setup again."; return 1; }
+  done
+  mv -f "$RUN" "$TOOLS/run" || { echo "Could not install the video tools launcher. Run setup again."; return 1; }
+  rm -rf "$TOOLS/cache"
+}
+publish_video_tools || exit 1
+
+# Palmier Pro: the editor with a live preview. Its own installer file is
+# downloaded, checked against the pinned hash and Palmier's signature, then
+# copied to Applications. An app that is already there is left as it is.
+# A failure here never stops setup: reels are edited with HyperFrames until
+# a later run installs it.
+palmier_setup() {
+  local app work dest
+  if ! app="$(palmier_app)"; then
+    work="$(mktemp -d "$TOOLS/palmier.XXXXXX")" || { echo "Could not create the Palmier Pro install folder."; return 1; }
+    fetch_pinned "$PALMIER_URL" "$PALMIER_SHA" "$work/PalmierPro.dmg" "Palmier Pro" || { rm -rf "$work"; return 1; }
+    mkdir "$work/mnt" && hdiutil attach -nobrowse -readonly -quiet -mountpoint "$work/mnt" "$work/PalmierPro.dmg" || {
+      palmier_drop "$work"; echo "Could not open the Palmier Pro download."; return 1; }
+    if ! palmier_signed "$work/mnt/PalmierPro.app"; then
+      palmier_drop "$work"
+      echo "The downloaded Palmier Pro could not be verified as Palmier's signed app. Nothing was installed."; return 1
+    fi
+    dest="${PALMIER_APPS_DIR:-/Applications}"
+    [ -d "$dest" ] && [ -w "$dest" ] || dest="$HOME/Applications"
+    # Copy under another name first: an interrupted copy must never look like the app.
+    mkdir -p "$dest" && rm -rf "$dest/.PalmierPro.app.partial" && ditto "$work/mnt/PalmierPro.app" "$dest/.PalmierPro.app.partial" && mv "$dest/.PalmierPro.app.partial" "$dest/PalmierPro.app" || {
+      rm -rf "$dest/.PalmierPro.app.partial"; palmier_drop "$work"
+      echo "Could not copy Palmier Pro to Applications."; return 1; }
+    palmier_drop "$work"
+    app="$dest/PalmierPro.app"
+  fi
+  palmier_signed "$app" || { echo "The Palmier Pro already in $(dirname "$app") could not be verified as Palmier's own app, so the kit leaves it alone and does not use it."; return 1; }
+  if ! palmier_skills_ok; then
+    work="$(mktemp -d "$TOOLS/palmier-skills.XXXXXX")" || { echo "Could not create the Palmier guides folder."; return 1; }
+    (cd "$work" && git init -q && git fetch -q --depth 1 https://github.com/palmier-io/palmier-skills.git "$PALMIER_SKILLS" && git checkout -q FETCH_HEAD && [ "$(git rev-parse HEAD)" = "$PALMIER_SKILLS" ]) || {
+      rm -rf "$work"; echo "Palmier editing guides download failed. Check the internet connection."; return 1; }
+    rm -rf "$work/.git" && echo "$PALMIER_SKILLS" > "$work/.commit" && rm -rf "$TOOLS/palmier-skills" && mv "$work" "$TOOLS/palmier-skills" || {
+      rm -rf "$work"; echo "Could not install the Palmier editing guides."; return 1; }
+  fi
+}
+if palmier_fits; then
+  palmier_setup || echo "Palmier Pro is not ready yet. Reels are edited with HyperFrames until setup runs again and installs it."
+fi
+
+rm -f "$REELS/.kit-update-pending"
+echo; echo "== Check =="; check; code=$?
+[ $code -eq 0 ] && echo "Done. Quit the Claude app (Command Q) and open it again, then start a new Code session in this Reels folder and say: set me up"
+exit $code
