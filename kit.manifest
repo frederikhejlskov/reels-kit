@@ -1,8 +1,8 @@
-reels-kit 16
-notes The kit now keeps itself up to date, and scripts are written from your own words.
-421ada98178747cc19ec0b13a5c6bfc2ce925ae3838e45215207728be121d1c7  CLAUDE.md
+reels-kit 17
+notes Updates are now safer and quieter: no restart needed, and you get one line on what changed.
+c581013df73cdf8e62667339ed8b9240eb4ba0a6e20c984f807c2ddfe6af358e  CLAUDE.md
 b6832d849e033f0333ecca02b1cf44da27a981e3c1ac346a3b61ad807505a8bd  README.md
-7b049884bc0a33ced9d24b4dcb4f75f0458a4e9365df2e12a07c9854b2d7251c  setup.sh
+fb9bcb65e717a57eaa5318256e6019badad31dc0f577bee1025d8974a63e3320  setup.sh
 eed1bbb82c4ad150111540e825eb4d24521764eb3ef5bdc7f939ab665cdff30f  tools/palmier.py
 71e2b35ce5e8bda3a5d8b4f3c26dbfffdda087c0b20adde552de6f3aaffd86bf  tools/past-chats.py
 d5f385b4bc33e7fe17b64312a778b2761b3bb5aa825c3acf5c66648f576fcd43  tools/run

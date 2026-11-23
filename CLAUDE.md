@@ -1,4 +1,4 @@
-<!-- reels-kit instructions v16 -->
+<!-- reels-kit instructions v17 -->
 # Reels
 
 You are the creator's Instagram manager and reel editor. You plan content from
@@ -116,7 +116,9 @@ missing, or a Video tools command fails because a tool is missing or broken
    message to whoever gave them the kit.
 5. When every check is OK, tell the creator: "All set. Quit the Claude app
    with Command Q, open it again, start a new Code session in this Reels
-   folder and say: set me up." The new tools and skills load only after that.
+   folder and say: set me up." When `profile.md` already exists, they are
+   set up: leave out "and say: set me up". The new tools and skills load
+   only after that.
 
 ## Running HyperFrames
 
@@ -484,13 +486,19 @@ update. It looks for a newer version of the kit, takes a few seconds and
 prints one line:
 
 - `UPDATED ...`: the kit's own files were replaced with a newer version;
-  the creator's files were not touched. Tell the creator in one line what
-  changed (the words after the colon), run `bash setup.sh` by steps 2 to
-  4 of "Install", then read `CLAUDE.md` again, because it is the newer
-  one, and follow its "Every session" from the check on.
+  the creator's files were not touched. Say you are finishing a kit
+  update, run `bash setup.sh` by steps 2 to 4 of "Install", then read
+  `CLAUDE.md` again, because it is the newer one, and follow its "Every
+  session" from the check on. In your first reply, give the creator one
+  line: the kit updated itself, and what changed, which is the words
+  after the colon in their language. No restart of the app is needed
+  after an update.
 - `UPDATE refused ...`: a newer version could not be checked as the kit's
   own and was left out. Tell the creator that once, in plain words, and
   that the person who gave them the kit should see that line. Carry on.
+- `UPDATE stopped ...`: run `bash setup.sh --update` once more. If it
+  says stopped again, tell the creator in plain words what the line
+  says, once, and carry on with the version in this folder.
 - Any other line: carry on and say nothing about updates.
 
 Run `bash setup.sh --check`. On MISS for "Other folders' instructions kept

@@ -18,7 +18,7 @@ if [ "$#" -gt 1 ]; then echo "Use --check, --update or no arguments"; exit 2; fi
 case "${1:-}" in ""|--check|--update) ;; *) echo "Unknown option: $1 (use --check, --update or nothing)"; exit 2;; esac
 KIT="$(cd "$(dirname "$0")" && pwd)"
 REELS="${REELS_DIR:-$KIT}"
-MARKER='<!-- reels-kit instructions v16 -->'
+MARKER='<!-- reels-kit instructions v17 -->'
 # Where newer versions of the kit come from, and the key their file list
 # must be signed with. A version is taken only when that signature is good,
 # every file matches the list, and it is newer than the one in this folder.
@@ -208,7 +208,7 @@ setup_running() { # setup_running <pid>: that process exists and is a setup.sh
 
 # --update: replace the kit's own files (CLAUDE.md, README.md, setup.sh and
 # tools/) with a newer signed version. Never touches anything else in the
-# folder. Prints one line starting UPDATED or UPDATE; a full setup run then
+# folder. Prints a line starting UPDATED or UPDATE; a full setup run then
 # finishes the update (the check reports it until that run ends).
 kit_version() { sed -n '1s/.*reels-kit instructions v\([0-9][0-9]*\).*/\1/p' "$1" 2>/dev/null; }
 kit_path_ok() { # only the kit's own files, never a path that leaves them
@@ -219,54 +219,83 @@ kit_path_ok() { # only the kit's own files, never a path that leaves them
   esac
   return 1
 }
-upd_get() { curl -fsSL --connect-timeout 5 --max-time 60 --max-filesize 5000000 "$1" -o "$2" 2>/dev/null; }
+kit_place_ok() { # kit_place_ok <path>: no link on the way, and the place itself is a plain file or free
+  local p="$REELS" rest="$1"
+  while [ -n "$rest" ]; do
+    p="$p/${rest%%/*}"
+    [ ! -L "$p" ] || return 1
+    case "$rest" in
+      */*) rest="${rest#*/}"; [ ! -e "$p" ] || [ -d "$p" ] || return 1 ;;
+      *) rest=''; [ ! -e "$p" ] || [ -f "$p" ] || return 1 ;;
+    esac
+  done
+}
+upd_get() { curl -fsSL --proto-redir =https --connect-timeout 5 --max-time 60 --max-filesize 5000000 "$1" -o "$2" 2>/dev/null; }
 update() {
-  local have want work notes sum path line refused
-  refused="UPDATE refused: the newer version could not be checked as the kit's own, so nothing changed."
-  REELS="$(cd "$REELS" && pwd -P)" || return 1
-  if setup_running "$(readlink "$lock" 2>/dev/null)"; then echo "UPDATE skipped: setup is running."; return 0; fi
+  local have want work notes sum path line
+  local refused="UPDATE refused: the newer version could not be checked as the kit's own, so nothing changed."
+  local nowrite="UPDATE skipped: could not write in this folder. Nothing changed."
+  local nonet="UPDATE skipped: the update address could not be reached. Nothing changed."
+  REELS="$(cd "$REELS" && pwd -P)" || { echo "$nowrite"; return 0; }
   rm -rf "$REELS"/.kit-update.??????
   have="$(kit_version "$REELS/CLAUDE.md")"; have="${have:-0}"
-  work="$(mktemp -d "$REELS/.kit-update.XXXXXX")" || { echo "UPDATE skipped: could not write in this folder."; return 0; }
-  upd_get "$UPDATE_SOURCE/main/kit.manifest" "$work/manifest" && upd_get "$UPDATE_SOURCE/main/kit.manifest.sig" "$work/manifest.sig" || {
-    echo "UPDATE skipped: the update address could not be reached."; return 0; }
-  echo "reels-kit $UPDATE_KEY" > "$work/allowed"
-  /usr/bin/ssh-keygen -Y verify -f "$work/allowed" -I reels-kit -n reels-kit-update -s "$work/manifest.sig" < "$work/manifest" >/dev/null 2>&1 || { echo "$refused"; return 0; }
-  want="$(sed -n '1s/^reels-kit \([0-9][0-9]*\)$/\1/p' "$work/manifest")"
+  work="$(mktemp -d "$REELS/.kit-update.XXXXXX")" || { echo "$nowrite"; return 0; }
+  # main only says which version is the newest. The file list and its
+  # signature come from that version's own tag, which never changes, so the
+  # two always belong together.
+  upd_get "$UPDATE_SOURCE/main/kit.manifest" "$work/hint" || { echo "$nonet"; return 0; }
+  want="$(sed -n '1s/^reels-kit \([0-9][0-9]*\)$/\1/p' "$work/hint")"
   [ -n "$want" ] || { echo "$refused"; return 0; }
   [ "$want" -gt "$have" ] || { echo "UPDATE none: this is the newest version."; return 0; }
+  upd_get "$UPDATE_SOURCE/v$want/kit.manifest" "$work/manifest" && upd_get "$UPDATE_SOURCE/v$want/kit.manifest.sig" "$work/manifest.sig" || { echo "$nonet"; return 0; }
+  echo "reels-kit $UPDATE_KEY" > "$work/allowed"
+  /usr/bin/ssh-keygen -Y verify -f "$work/allowed" -I reels-kit -n reels-kit-update -s "$work/manifest.sig" < "$work/manifest" >/dev/null 2>&1 || { echo "$refused"; return 0; }
+  [ "$(sed -n '1s/^reels-kit \([0-9][0-9]*\)$/\1/p' "$work/manifest")" = "$want" ] || { echo "$refused"; return 0; }
   notes="$(sed -n '2s/^notes //p' "$work/manifest")"
-  tail -n +3 "$work/manifest" > "$work/list"
-  grep -q '  CLAUDE\.md$' "$work/list" && grep -q '  setup\.sh$' "$work/list" || { echo "$refused"; return 0; }
-  mkdir "$work/new" || return 1
+  tail -n +3 "$work/manifest" > "$work/list" && cut -c67- "$work/list" > "$work/paths" || { echo "$nowrite"; return 0; }
+  grep -qxF CLAUDE.md "$work/paths" && grep -qxF setup.sh "$work/paths" && [ -z "$(LC_ALL=C sort "$work/paths" | uniq -d)" ] || { echo "$refused"; return 0; }
+  mkdir "$work/new" || { echo "$nowrite"; return 0; }
   while IFS= read -r line; do
     sum="${line%%  *}"; path="${line#*  }"
     [ "${#sum}" -eq 64 ] && kit_path_ok "$path" || { echo "$refused"; return 0; }
-    mkdir -p "$work/new/$(dirname "$path")" || return 1
-    upd_get "$UPDATE_SOURCE/v$want/$path" "$work/new/$path" || { echo "UPDATE skipped: the download stopped. Nothing changed."; return 0; }
+    kit_place_ok "$path" || { echo "UPDATE stopped: $path in this folder is a link or a folder, so the kit left everything as it was."; return 0; }
+    mkdir -p "$work/new/$(dirname "$path")" || { echo "$nowrite"; return 0; }
+    upd_get "$UPDATE_SOURCE/v$want/$path" "$work/new/$path" || { echo "$nonet"; return 0; }
     [ "$(shasum -a 256 "$work/new/$path" | cut -d' ' -f1)" = "$sum" ] || { echo "$refused"; return 0; }
   done < "$work/list"
-  [ "$(kit_version "$work/new/CLAUDE.md")" = "$want" ] && /bin/bash -n "$work/new/setup.sh" 2>/dev/null || { echo "$refused"; return 0; }
-  : > "$REELS/.kit-update-pending" || { echo "UPDATE skipped: could not write in this folder."; return 0; }
-  # Kit files the newer version no longer has: only ones an earlier update listed.
-  if [ -f "$REELS/.kit.manifest" ]; then
-    tail -n +3 "$REELS/.kit.manifest" > "$work/old"
-    while IFS= read -r line; do
-      path="${line#*  }"
-      kit_path_ok "$path" && ! cut -c67- "$work/list" | grep -qxF "$path" && rm -f "$REELS/$path"
-    done < "$work/old"
-  fi
-  # CLAUDE.md carries the version, so it goes last: a stopped update runs again.
-  { grep -v '  CLAUDE\.md$' "$work/list"; grep '  CLAUDE\.md$' "$work/list"; } > "$work/order"
+  [ "$(kit_version "$work/new/CLAUDE.md")" = "$want" ] && grep -q "^MARKER='<!-- reels-kit instructions v$want -->'$" "$work/new/setup.sh" &&
+    /bin/bash -n "$work/new/setup.sh" 2>/dev/null || { echo "$refused"; return 0; }
+  # Kit files the newer version no longer has: only ones an earlier update
+  # put here, and only while they are still exactly that file.
+  : > "$work/old"; [ ! -f "$REELS/.kit.manifest" ] || tail -n +3 "$REELS/.kit.manifest" > "$work/old"
+  cp "$work/manifest" "$REELS/.kit.manifest" && : > "$REELS/.kit-update-pending" || { echo "$nowrite"; return 0; }
   while IFS= read -r line; do
-    path="${line#*  }"
+    sum="${line%%  *}"; path="${line#*  }"
+    kit_path_ok "$path" && kit_place_ok "$path" && [ -f "$REELS/$path" ] && ! grep -qxF "$path" "$work/paths" &&
+      [ "$(shasum -a 256 "$REELS/$path" | cut -d' ' -f1)" = "$sum" ] && rm -f "$REELS/$path"
+  done < "$work/old"
+  # CLAUDE.md carries the version, so it goes last: a stopped update runs again.
+  { grep -vxF CLAUDE.md "$work/paths"; echo CLAUDE.md; } > "$work/order"
+  while IFS= read -r path; do
     mkdir -p "$REELS/$(dirname "$path")" && mv -f "$work/new/$path" "$REELS/$path" || {
-      echo "UPDATE stopped: could not replace $path. Run it again."; return 1; }
+      echo "UPDATE stopped: could not replace $path. Run the update again."; return 0; }
   done < "$work/order"
-  cp "$work/manifest" "$REELS/.kit.manifest"
   echo "UPDATED version $have to $want: $notes"
+  echo "Next: run bash setup.sh, then read CLAUDE.md again. It changed."
 }
-if [ "${1:-}" = "--update" ]; then update; code=$?; rm -rf "$REELS"/.kit-update.??????; exit $code; fi
+# A full setup run finishes an update. The mark stays while setup.sh and
+# CLAUDE.md are not the same version: the next --update repairs that.
+update_done() { [ "$(head -1 "$REELS/CLAUDE.md" 2>/dev/null)" != "$MARKER" ] || rm -f "$REELS/.kit-update-pending"; }
+if [ "${1:-}" = "--update" ]; then
+  # One at a time, and never beside a running setup: the same lock.
+  if ! ln -s "$$" "$lock" 2>/dev/null; then
+    setup_running "$(readlink "$lock" 2>/dev/null)" && { echo "UPDATE skipped: setup or another update is running."; exit 0; }
+    rm -f "$lock"
+    ln -s "$$" "$lock" 2>/dev/null || { echo "UPDATE skipped: setup or another update is running."; exit 0; }
+  fi
+  trap 'rm -rf "$REELS"/.kit-update.??????; rm -f "$lock"' EXIT
+  update; exit 0
+fi
 
 if ! ln -s "$$" "$lock" 2>/dev/null; then
   setup_running "$(readlink "$lock" 2>/dev/null)" && { echo "Setup is already running. Wait for it to finish."; exit 4; }
@@ -685,7 +714,7 @@ if palmier_fits; then
   palmier_setup || echo "Palmier Pro is not ready yet. Reels are edited with HyperFrames until setup runs again and installs it."
 fi
 
-rm -f "$REELS/.kit-update-pending"
+update_done
 echo; echo "== Check =="; check; code=$?
 [ $code -eq 0 ] && echo "Done. Quit the Claude app (Command Q) and open it again, then start a new Code session in this Reels folder and say: set me up"
 exit $code
