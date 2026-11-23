@@ -18,7 +18,7 @@ if [ "$#" -gt 1 ]; then echo "Use --check, --update or no arguments"; exit 2; fi
 case "${1:-}" in ""|--check|--update) ;; *) echo "Unknown option: $1 (use --check, --update or nothing)"; exit 2;; esac
 KIT="$(cd "$(dirname "$0")" && pwd)"
 REELS="${REELS_DIR:-$KIT}"
-MARKER='<!-- reels-kit instructions v17 -->'
+MARKER='<!-- reels-kit instructions v18 -->'
 # Where newer versions of the kit come from, and the key their file list
 # must be signed with. A version is taken only when that signature is good,
 # every file matches the list, and it is newer than the one in this folder.
@@ -530,17 +530,34 @@ REELS="$(cd "$REELS" && pwd -P)"
 
 cd "$REELS" || exit 1
 resolve_claude || { echo "Claude Code was not found in a new Terminal. Fix its installation, then rerun setup.sh"; exit 1; }
-"$claude_bin" plugin marketplace add --scope project "$INSTAGRAM_MARKETPLACE" || { echo "Instagram skills marketplace setup failed. Fix the error above, then rerun setup.sh"; exit 1; }
+# The plugin steps need a recent Claude Code: an older one cannot fetch a
+# marketplace at an exact commit ("Remote branch <commit> not found"). A copy
+# installed long ago and never run has not updated itself, so on the first
+# plugin step that fails, setup updates Claude Code once and tries again.
+claude_updated=''
+claude_step() { # claude_step "<what>" <claude arguments...>
+  local what="$1"; shift
+  "$claude_bin" "$@" && return 0
+  if [ -z "$claude_updated" ]; then
+    claude_updated=1
+    echo "That step failed with Claude Code $("$claude_bin" --version 2>/dev/null). Updating Claude Code, then trying it again..."
+    "$claude_bin" update || echo "Claude Code could not update itself."
+    resolve_claude && "$claude_bin" "$@" && return 0
+  fi
+  echo "$what failed with Claude Code $("$claude_bin" --version 2>/dev/null). Update Claude Code (open Terminal, type: claude update), then rerun setup.sh"
+  return 1
+}
+claude_step "Instagram skills marketplace setup" plugin marketplace add --scope project "$INSTAGRAM_MARKETPLACE" || exit 1
 if plugin_field instagram-agent@instagram-agent-skill id >/dev/null; then
-  "$claude_bin" plugin update --scope project instagram-agent@instagram-agent-skill || { echo "Instagram skills update failed. Fix the error above, then rerun setup.sh"; exit 1; }
+  claude_step "Instagram skills update" plugin update --scope project instagram-agent@instagram-agent-skill || exit 1
 else
-  "$claude_bin" plugin install --scope project instagram-agent@instagram-agent-skill || { echo "Instagram skills install failed. Fix the error above, then rerun setup.sh"; exit 1; }
+  claude_step "Instagram skills install" plugin install --scope project instagram-agent@instagram-agent-skill || exit 1
 fi
-"$claude_bin" plugin marketplace add --scope project "$HYPERFRAMES_MARKETPLACE" || { echo "HyperFrames marketplace setup failed. Fix the error above, then rerun setup.sh"; exit 1; }
+claude_step "HyperFrames marketplace setup" plugin marketplace add --scope project "$HYPERFRAMES_MARKETPLACE" || exit 1
 if plugin_field hyperframes@hyperframes id >/dev/null; then
-  "$claude_bin" plugin update --scope project hyperframes@hyperframes || { echo "HyperFrames update failed. Fix the error above, then rerun setup.sh"; exit 1; }
+  claude_step "HyperFrames update" plugin update --scope project hyperframes@hyperframes || exit 1
 else
-  "$claude_bin" plugin install --scope project hyperframes@hyperframes || { echo "HyperFrames install failed. Fix the error above, then rerun setup.sh"; exit 1; }
+  claude_step "HyperFrames install" plugin install --scope project hyperframes@hyperframes || exit 1
 fi
 hf="$(plugin_field hyperframes@hyperframes installPath)" || { echo "HyperFrames was not found. Fix its installation, then rerun setup.sh"; exit 1; }
 fence write || { echo "Could not update this folder's Claude settings (.claude/settings.json). Fix or remove that file, then rerun setup.sh"; exit 1; }
