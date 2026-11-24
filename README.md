@@ -20,6 +20,12 @@ scratch for hours.
 
 ## Install
 
+Before you start, update your Mac and Claude. In System Settings,
+General, Software Update, install the newest macOS it offers and
+restart. A new version of macOS is often listed on its own, under the
+updates, with an Upgrade Now button: install that one too. Then open the
+Claude app and choose Claude, Check for Updates.
+
 1. Make a new, empty folder called `Reels` in your home folder (in
    Finder: Go, Home, then File, New Folder). It must stay where it is
    after step 4. Not in iCloud Drive, Dropbox or Google Drive, and not

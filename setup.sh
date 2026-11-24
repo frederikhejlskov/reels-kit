@@ -20,7 +20,7 @@ if [ "$#" -gt 1 ]; then echo "Use --check, --update or no arguments"; exit 2; fi
 case "${1:-}" in ""|--check|--update) ;; *) echo "Unknown option: $1 (use --check, --update or nothing)"; exit 2;; esac
 KIT="$(cd "$(dirname "$0")" && pwd)"
 REELS="${REELS_DIR:-$KIT}"
-MARKER='<!-- reels-kit instructions v20 -->'
+MARKER='<!-- reels-kit instructions v21 -->'
 # Where newer versions of the kit come from, and the key their file list
 # must be signed with. A version is taken only when that signature is good,
 # every file matches the list, and it is newer than the one in this folder.
@@ -95,6 +95,9 @@ video_line() {
 # plugin_field <id> <field>: prints the field of the plugin enabled for this
 # exact folder at project scope; exits 1 if there is no such install.
 resolve_claude() {
+  # Anthropic's own copy first: it is the one setup installs and keeps
+  # current, also when another copy (Homebrew, npm) comes first on the PATH.
+  if [ -x "$HOME/.local/bin/claude" ]; then claude_bin="$HOME/.local/bin/claude"; return 0; fi
   # Startup files may print to stdout, so the command's path is the last line.
   claude_bin="$(fresh 'printf "\n"; whence -p claude' | tail -n 1)" || return 1
   [ -n "$claude_bin" ] && [ -x "$claude_bin" ]
@@ -669,29 +672,42 @@ REELS="$(cd "$REELS" && pwd -P)"
 cd "$REELS" || exit 1
 resolve_claude || { echo "Claude Code was not found in a new Terminal. Fix its installation, then rerun setup.sh"; exit 1; }
 # The plugin steps need a recent Claude Code: an older one cannot fetch a
-# marketplace at an exact commit ("Remote branch <commit> not found"). A copy
-# installed long ago and never run has not updated itself, so on the first
-# plugin step that fails, setup updates Claude Code once and tries again.
-claude_updated=''
-claude_update_failed=''
+# marketplace at an exact commit ("Remote branch <commit> not found"), and
+# the Claude app updating itself does not update this command. So every
+# run updates it first. A failed update stops nothing here: a plugin step
+# that then fails says what to do (no internet is the usual cause, since a
+# copy that may not update itself is replaced by a current one).
+# Setup runs inside a Claude session, where an older Claude Code refuses
+# to start at all ("cannot be launched inside another Claude Code
+# session"); an update is not a session, so it runs without that mark.
+claude_update() {
+  echo "Updating Claude Code..."
+  # Homebrew's copy only says "brew upgrade claude-code" and reports
+  # success with nothing changed, so it counts as one that cannot update.
+  if case "$(readlink -f "$claude_bin" 2>/dev/null)" in
+       */Caskroom/*) false ;;
+       *) env -u CLAUDECODE "$claude_bin" update ;;
+     esac; then
+    resolve_claude || { echo "Claude Code was not found in a new Terminal. Fix its installation, then rerun setup.sh"; exit 1; }
+    return 0
+  fi
+  # Nor can a copy npm put in a folder only an administrator may change
+  # ("Insufficient permissions"). Anthropic's own installer
+  # puts a current one in ~/.local/bin; that folder goes first on the PATH.
+  echo "Installing a current Claude Code beside it..."
+  if (unset CLAUDECODE; fetch_run https://claude.ai/install.sh) && [ -x "$HOME/.local/bin/claude" ]; then
+    claude_bin="$HOME/.local/bin/claude"
+    grep -qsxF 'export PATH="$HOME/.local/bin:$PATH"' "$HOME/.zprofile" || echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.zprofile"
+    return 0
+  fi
+  echo "Claude Code could not update itself. Carrying on with the version on this Mac."
+}
+claude_update
 claude_step() { # claude_step "<what>" <claude arguments...>
   local what="$1" ver; shift
   "$claude_bin" "$@" && return 0
-  if [ -z "$claude_updated" ]; then
-    claude_updated=1
-    ver="$("$claude_bin" --version 2>/dev/null)"
-    echo "That step failed with Claude Code ${ver%% *}. Updating Claude Code, then trying it again..."
-    "$claude_bin" update || { claude_update_failed=1; echo "Claude Code could not update itself."; }
-    resolve_claude && "$claude_bin" "$@" && return 0
-  fi
-  ver="$("$claude_bin" --version 2>/dev/null)"
-  # Name the update only when it is what is missing: a step also fails with
-  # no internet, and then updating changes nothing.
-  if [ -n "$claude_update_failed" ]; then
-    echo "$what failed with Claude Code ${ver%% *}, which could not update itself. Update Claude Code (open Terminal, type: claude update), then rerun setup.sh"
-  else
-    echo "$what failed with Claude Code ${ver%% *}. The error is above. Check the internet connection, then rerun setup.sh"
-  fi
+  ver="$(env -u CLAUDECODE "$claude_bin" --version 2>/dev/null)"
+  echo "$what failed with Claude Code ${ver%% *}. The error is above. Check the internet connection, then rerun setup.sh"
   return 1
 }
 claude_step "Instagram skills marketplace setup" plugin marketplace add --scope project "$INSTAGRAM_MARKETPLACE" || exit 1

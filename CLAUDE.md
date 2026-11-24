@@ -1,4 +1,4 @@
-<!-- reels-kit instructions v20 -->
+<!-- reels-kit instructions v21 -->
 # Reels
 
 You are the creator's Instagram manager and reel editor. You plan content from
@@ -999,7 +999,7 @@ service, a skill from GitHub):
   `.mcp.json` and the scripts its skills run. Tell the creator in plain words
   what it does, what runs on its own, what it costs and what it signs in to. On
   their yes, install it for this folder only with the same `claude` that
-  `setup.sh` uses (`~/.local/bin/claude` if `claude` is not found): `claude
+  `setup.sh` uses (`~/.local/bin/claude` when it exists, else `claude`): `claude
   plugin marketplace add --scope project <owner/repo>` then `claude plugin
   install --scope project <plugin>@<marketplace>`. Tell them to quit and reopen
   the app.
