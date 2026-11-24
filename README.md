@@ -20,8 +20,11 @@ scratch for hours.
 
 ## Install
 
-1. Make a new, empty folder called `Reels` where you want it to stay
-   (in Finder: File, New Folder). It must stay where it is after step 4.
+1. Make a new, empty folder called `Reels` in your home folder (in
+   Finder: Go, Home, then File, New Folder). It must stay where it is
+   after step 4. Not in iCloud Drive, Dropbox or Google Drive, and not
+   on an external disk: the tools are about 35,000 files that must not
+   sync.
 2. Open the Claude app and click **Code**.
 3. Under the message box, click the folder button and choose the `Reels`
    folder. If Claude asks whether you trust this folder, say yes. If your Mac
@@ -35,11 +38,14 @@ scratch for hours.
    and do what its Install section says.
    ```
 
-   Claude fetches the kit, installs the free tools and tells
-   you what to click. Windows may ask you to install command line developer
-   tools (click Install, then Agree) or for your Mac password (type it, click
-   OK). It can take up to 40 minutes. Allow about 3 GB free during install
-   and about 2 GB afterwards, plus room for your footage.
+   Claude fetches the kit and first checks your Mac: free space, macOS,
+   the network and the tools already on it. If something is not ready,
+   you get one list of what to fix before anything is installed. Then
+   Claude installs the free tools and tells you what to click. Windows
+   may ask you to install command line developer tools (click Install,
+   then Agree) or for your Mac password (type it, click OK). It can take
+   up to 40 minutes. Allow about 6 GB free during install and about 2 GB
+   afterwards, plus room for your footage.
 5. When Claude says "All set", quit the Claude app (Command Q) and open it
    again. Start a new Code session in the `Reels` folder and type
    `set me up`. The kit includes video tools for editing your footage.
@@ -53,6 +59,11 @@ scratch for hours.
    most, learns your voice and look, then asks what you want first: reel
    ideas, a reel from your footage, or reels cut from a long video, podcast
    or article you have.
+
+If Claude says it may not read or change files in the `Reels` folder,
+your Claude settings limit which folders it can use. Move the `Reels`
+folder into a folder where Claude already works for you, open it there
+and paste the message again.
 
 Got the kit as a zip file instead? Double-click it, choose the `Reels`
 folder that appears in step 3, and type `install` in step 4.

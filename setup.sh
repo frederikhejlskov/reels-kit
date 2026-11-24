@@ -7,18 +7,20 @@
 # REELS_DIR overrides the folder; used for testing.
 # Lines starting "ACTION:" are steps only the person at the Mac can do. Exit 3
 # means one is waiting: do it, then run setup.sh again. Exit 4: setup is
-# already running. Exit 5: the kit needs an update.
+# already running. Exit 5: the kit needs an update. Exit 6: this Mac is not
+# ready; the numbered list says what to fix first.
 # Installs only what is missing: never replaces a Node, Python or any
 # Homebrew package the Mac already has.
 # Video tools live in .tools/ inside the Reels folder.
 # Palmier Pro, the editor, goes in Applications (macOS 26 or newer only).
 # PALMIER_APPS_DIR overrides that folder; used for testing.
 set -uo pipefail
+unset BREW_DRY # only the check before installing sets it, for one call at a time
 if [ "$#" -gt 1 ]; then echo "Use --check, --update or no arguments"; exit 2; fi
 case "${1:-}" in ""|--check|--update) ;; *) echo "Unknown option: $1 (use --check, --update or nothing)"; exit 2;; esac
 KIT="$(cd "$(dirname "$0")" && pwd)"
 REELS="${REELS_DIR:-$KIT}"
-MARKER='<!-- reels-kit instructions v18 -->'
+MARKER='<!-- reels-kit instructions v20 -->'
 # Where newer versions of the kit come from, and the key their file list
 # must be signed with. A version is taken only when that signature is good,
 # every file matches the list, and it is newer than the one in this folder.
@@ -151,6 +153,9 @@ PY
 check() {
   missing=0
   [ -d "$REELS" ] && REELS="$(cd "$REELS" && pwd -P)"
+  # The plugin lines below run node from this PATH: use a new Terminal's, so
+  # a session started without it does not report tools missing that are there.
+  local login; login="$(fresh 'printf "\n%s" "$PATH"' 2>/dev/null | tail -n 1)" && [ -n "$login" ] && PATH="$login:$PATH"
   line "Homebrew" "command -v brew"
   line "Node 22+" "node -e 'process.exit(+process.versions.node.split(\".\")[0] < 22 ? 1 : 0)'"
   line "FFmpeg" "command -v ffmpeg"
@@ -204,6 +209,23 @@ lock="$REELS/.setup.lock"
 mkdir -p "$REELS" || exit 1
 setup_running() { # setup_running <pid>: that process exists and is a setup.sh
   [ -n "$1" ] && kill -0 "$1" 2>/dev/null && ps -p "$1" -o command= 2>/dev/null | grep -qF setup.sh
+}
+
+# Run from the home folder itself (or Downloads, Desktop, Documents), setup
+# would treat that whole folder as the Reels folder and write its settings
+# and tools there. Refused before anything is written, also for --update.
+own_folder() {
+  local f h d
+  f="$(cd "$REELS" 2>/dev/null && pwd -P)" || return 0
+  for d in "$HOME" "$HOME/Downloads" "$HOME/Desktop" "$HOME/Documents"; do
+    h="$(cd "$d" 2>/dev/null && pwd -P)" && [ "$f" = "$h" ] && return 1
+  done
+  return 0
+}
+own_folder || {
+  echo "This Mac is not ready for the kit yet. Nothing was installed. Fix these, then run setup again:"
+  echo "1. setup.sh is not in a folder of its own. Make a new folder called Reels in your home folder, move setup.sh into it, open that folder in Claude and paste the install message again."
+  exit 6
 }
 
 # --update: replace the kit's own files (CLAUDE.md, README.md, setup.sh and
@@ -297,7 +319,9 @@ if [ "${1:-}" = "--update" ]; then
   update; exit 0
 fi
 
+NOWRITE="Setup cannot create files in this folder ($REELS). Claude may not be allowed to change it, or it is on a disk the tools cannot use (a camera card or an external disk for Windows). Nothing was installed. Move the Reels folder to your home folder, open it there in Claude and say install."
 if ! ln -s "$$" "$lock" 2>/dev/null; then
+  [ -L "$lock" ] || { echo "$NOWRITE"; exit 1; }
   setup_running "$(readlink "$lock" 2>/dev/null)" && { echo "Setup is already running. Wait for it to finish."; exit 4; }
   rm -f "$lock"
   ln -s "$$" "$lock" 2>/dev/null || { echo "Setup is already running. Wait for it to finish."; exit 4; }
@@ -318,7 +342,7 @@ clean_video_temp() {
   done
   rm -f "$TOOLS/.run.partial" "$TOOLS/ffmpeg-build.log"
 }
-cleanup() { clean_video_temp; clean_palmier_temp; rm -f "$lock"; [ -z "$pkg_dir" ] || rm -rf "$pkg_dir"; }
+cleanup() { clean_video_temp; clean_palmier_temp; rm -f "$lock"; [ -z "$pkg_dir" ] || rm -rf "$pkg_dir"; [ -z "${pre_dir:-}" ] || rm -rf "$pre_dir"; }
 trap cleanup EXIT
 
 download() { curl -fsSL --retry 3 --connect-timeout 30 --speed-limit 1024 --speed-time 60 "$@"; }
@@ -340,7 +364,7 @@ fetch_run() { # fetch_run <url>: download to a file first so a failed download s
   /bin/bash "$f"; local c=$?; rm -f "$f"; return $c
 }
 profile_add() { # profile_add <command> <line>: only when a fresh login shell can't find <command>
-  fresh 'command -v "$1"' _ "$1" >/dev/null 2>&1 || grep -qsF "$2" "$HOME/.zprofile" || echo "$2" >> "$HOME/.zprofile"
+  fresh 'whence -p "$1"' _ "$1" >/dev/null 2>&1 || grep -qsF "$2" "$HOME/.zprofile" || echo "$2" >> "$HOME/.zprofile"
 }
 has() { fresh 'command -v "$1"' _ "$1" >/dev/null 2>&1; } # same test as the check
 
@@ -374,7 +398,7 @@ brew_install() { # Refuse installs that would change an installed package or bui
     if [ "$item" = "$formula" ] || [ "${item##*/}" = "${formula##*/}" ]; then
       # Installed but its command is missing: an interrupted install left it
       # unlinked. Linking changes no version.
-      if [ "$kind" = --formula ]; then brew link "$formula"; return; fi
+      if [ "$kind" = --formula ]; then [ -n "${BREW_DRY:-}" ] || brew link "$formula"; return; fi
       printf 'Cannot install %s: it is already installed. Reinstall it yourself, then rerun setup.sh.\n' "$formula"
       return 1
     fi
@@ -405,12 +429,22 @@ brew_install() { # Refuse installs that would change an installed package or bui
     printf 'This version of macOS is too old for the ready-made %s: installing it would mean hours of building on this Mac, so it was not installed. Update macOS (System Settings, General, Software Update), then run setup again.\n' "$formula"
     return 1
   fi
+  [ -z "${BREW_DRY:-}" ] || return 0 # the check before installing: only say what would stop it
   brew install "$@"
 }
 
 BREW_BIN="${REELS_BREW_BIN:-/opt/homebrew/bin/brew}" # override only for tests
 have_clt() { xcode-select -p >/dev/null 2>&1 && [ -x "$(xcode-select -p)/usr/bin/git" ]; }
-have_brew() { command -v brew >/dev/null || [ -x "$BREW_BIN" ]; }
+# A Mac set up from an old Intel Mac brings a Homebrew in /usr/local that
+# has no ready-made packages for an Apple chip. While the kit's tools still
+# have to be installed, only Homebrew in /opt/homebrew counts there: setup
+# adds this Mac's own beside the old one and leaves the old one alone. Once
+# the tools are installed, whatever Homebrew is there is left as it is.
+have_brew() {
+  [ -x "$BREW_BIN" ] && return 0
+  command -v brew >/dev/null || return 1
+  [ "$(sysctl -n hw.optional.arm64 2>/dev/null)" != 1 ] || [ -x "$REELS/.tools/run" ]
+}
 wait_for_clt() { # true once installed; false after 8 minutes or once the window is gone
   local start=$SECONDS
   until have_clt; do
@@ -457,6 +491,104 @@ have_clt && ( REELS="$(cd "$REELS" && pwd -P)" && fence write ) 2>/dev/null
 mac_fits >/dev/null 2>&1 || rm -f "$REELS/.kit-update-pending" # nothing to finish on a Mac setup refuses
 mac_fits || exit 1
 
+# Check this Mac before installing anything: everything the install relies on
+# that setup cannot put right by itself, as one list, so nobody finds out
+# twenty minutes in. Installs and changes nothing. Exit 6 with the list.
+NET_HOSTS='github.com raw.githubusercontent.com ghcr.io formulae.brew.sh pypi.org files.pythonhosted.org huggingface.co ffmpeg.org registry.npmjs.org claude.ai'
+# Free space the way Finder counts it: with what macOS frees on demand (files
+# kept in iCloud, old backups). df leaves that out and can read far too low.
+free_gb() {
+  local gb
+  gb="$(/usr/bin/osascript -l JavaScript -e 'function run(a) { ObjC.import("Foundation"); var r = Ref();
+    return $.NSURL.fileURLWithPath(a[0]).getResourceValueForKeyError(r, $.NSURLVolumeAvailableCapacityForImportantUsageKey, null)
+      ? Math.floor(ObjC.unwrap(r[0]) / 1073741824) : -1 }' "$1" 2>/dev/null)"
+  case "$gb" in ''|-1|*[!0-9]*) df -Pk "$1" 2>/dev/null | awk 'NR==2 {print int($4/1048576)}' ;; *) echo "$gb" ;; esac
+}
+disk_of() { df -P "$1" 2>/dev/null | awk 'NR==2 {print $1}'; }
+is_admin() { id -Gn 2>/dev/null | tr ' ' '\n' | grep -qx admin; }
+icloud_desktop() { [ "$(defaults read com.apple.finder FXICloudDriveDesktop 2>/dev/null)" = 1 ]; }
+# Only whether the site answers at all: headers, no page, any answer counts.
+reach() { curl -sI -o /dev/null --connect-timeout 5 -m 10 "https://$1/" 2>/dev/null; }
+node_found() { fresh 'printf "\n"; whence -p node' 2>/dev/null | tail -n 1; }
+node_major() { fresh "node -p 'process.versions.node.split(\".\")[0]'" 2>/dev/null | tail -n 1; }
+pre_dir=''
+preflight() {
+  local todo=() folder home gb hb out pair cmd formula path major prefix host bad='' n
+  local synced="The Reels folder is inside a folder that syncs to the cloud (iCloud, Dropbox, Google Drive or OneDrive). The tools are about 35,000 files and must not sync. Move the Reels folder to your home folder, open it there in Claude and say install."
+  folder="$(cd "$REELS" && pwd -P)" || folder="$REELS"
+  home="$(cd "$HOME" && pwd -P)" || home="$HOME"
+  # Only before the tools are installed: a kit that already works where it
+  # is must not be stopped by an update.
+  [ -x "$folder/.tools/run" ] || case "$folder" in
+    "$home/Library/Mobile Documents"/*|"$home/Library/CloudStorage"/*) todo+=("$synced") ;;
+    "$home/Desktop"/*|"$home/Documents"/*) ! icloud_desktop || todo+=("$synced") ;;
+  esac
+  if [ ! -d "$folder/.tools" ]; then # before a first install; a stopped one has used most of it already
+    gb="$(free_gb "$folder")"; hb="$(free_gb "$HOME")"
+    if [ "$(disk_of "$folder")" = "$(disk_of "$HOME")" ]; then
+      [ "${gb:-99}" -ge 6 ] || todo+=("This Mac has $gb GB of free space and the install needs about 6 GB. Free up space (empty the Trash, delete old downloads or videos), then run setup again.")
+    else
+      [ "${gb:-99}" -ge 3 ] || todo+=("The disk the Reels folder is on has $gb GB of free space and the tools need about 3 GB there. Free up space on it, then run setup again.")
+      [ "${hb:-99}" -ge 4 ] || todo+=("This Mac's own disk has $hb GB of free space and the install needs about 4 GB there. Free up space (empty the Trash, delete old downloads or videos), then run setup again.")
+    fi
+  fi
+  if ! have_clt || ! have_brew; then
+    is_admin || todo+=("This Mac account is not an administrator, and the install needs one. Log in as the Mac's owner, or ask them to make this account an administrator (System Settings, Users & Groups), then run setup again.")
+  fi
+  if have_brew; then
+    [ -x "$BREW_BIN" ] && eval "$("$BREW_BIN" shellenv)"
+    prefix="$(brew --prefix 2>/dev/null)"
+    if [ ! -x "$folder/.tools/run" ] && [ ! -w "$prefix" ]; then
+      todo+=("Homebrew on this Mac was installed by another user account, so this account cannot install tools with it. Log in as that user and run the install there, or send this line to the person who gave you the kit.")
+    else
+      for pair in node:node ffmpeg:ffmpeg whisper-cli:whisper.cpp uv:uv pkg-config:pkgconf; do
+        cmd="${pair%%:*}"; formula="${pair#*:}"
+        has "$cmd" || out="$(BREW_DRY=1 brew_install "$formula" 2>/dev/null)" || todo+=("$(printf '%s\n' "$out" | tail -n 1)")
+      done
+      brew list --versions libvidstab >/dev/null 2>&1 || out="$(BREW_DRY=1 brew_install libvidstab 2>/dev/null)" || todo+=("$(printf '%s\n' "$out" | tail -n 1)")
+      [ -d "/Applications/Google Chrome.app" ] || [ -d "$HOME/Applications/Google Chrome.app" ] ||
+        out="$(BREW_DRY=1 brew_install --cask google-chrome 2>/dev/null)" || todo+=("$(printf '%s\n' "$out" | tail -n 1)")
+    fi
+  fi
+  if has node; then
+    major="$(node_major)"; path="$(node_found)"
+    if [ -n "$major" ] && [ "$major" -lt 22 ] 2>/dev/null; then
+      case "$path" in
+        */.nvm/*) n='Open Terminal, type: nvm install 22 && nvm alias default 22' ;;
+        /opt/homebrew/*) n='Open Terminal, type: brew upgrade node' ;;
+        *) n='Download the installer from nodejs.org (the button marked LTS), open it and click through' ;;
+      esac
+      todo+=("Node on this Mac is version $major and the kit needs 22 or newer. $n, then run setup again.")
+    fi
+  fi
+  # setup runs npm only while the tools are being installed.
+  if [ ! -x "$folder/.tools/run" ]; then
+    for path in "$HOME/.npm" "$HOME/.npm/_cacache"; do
+      [ ! -e "$path" ] || [ -O "$path" ] || { todo+=("The folder .npm in your home folder belongs to another account, which stops a tool from installing. Open Terminal, type: sudo chown -R $(id -un) ~/.npm and your Mac password, then run setup again."); break; }
+    done
+  fi
+  # Only while the tools still have to be downloaded: a finished kit must not
+  # be held up by a slow or closed network.
+  if [ ! -x "$folder/.tools/run" ] && pre_dir="$(mktemp -d)"; then
+    for host in $NET_HOSTS; do ( reach "$host" || : > "$pre_dir/$host" ) & done
+    wait
+    bad="$(ls "$pre_dir" | tr '\n' ' ')"; rm -rf "$pre_dir"; pre_dir=''
+    n=0; for host in $bad; do n=$((n + 1)); done
+    if [ "$n" -ge 8 ]; then
+      todo+=("This Mac is not connected to the internet, or this network blocks almost everything the install downloads. Connect, or switch to another network (home Wi-Fi or a phone hotspot), then run setup again.")
+    elif [ "$n" -gt 0 ]; then
+      todo+=("This network does not let the Mac reach: ${bad% }. The install downloads from there. Switch to another network (home Wi-Fi or a phone hotspot; work and hotel networks often block these), then run setup again.")
+    fi
+  fi
+  [ "${#todo[@]}" -gt 0 ] || return 0
+  echo "This Mac is not ready for the kit yet. Nothing was installed. Fix these, then run setup again:"
+  n=0; for out in "${todo[@]}"; do n=$((n + 1)); echo "$n. $out"; done
+  return 6
+}
+preflight || exit 6
+# A sleeping Mac stops the downloads: keep it awake while setup runs.
+caffeinate -i -w $$ >/dev/null 2>&1 &
+
 # Apple's developer tools give git, which plugin installs need.
 if ! have_clt; then
   echo "Installing Apple's command line tools..."
@@ -467,6 +599,7 @@ if ! have_clt; then
 fi
 
 if ! have_brew; then
+  ! command -v brew >/dev/null || echo "This Mac has an older Homebrew made for Intel Macs. Setup adds this Mac's own Homebrew beside it and leaves the old one as it is. From now on, brew in Terminal means the new one."
   if [ "$(uname -m)" = arm64 ]; then
     pkg_dir="$(mktemp -d)" && pkg="$pkg_dir/Homebrew.pkg" &&
       download -o "$pkg" https://github.com/Homebrew/brew/releases/latest/download/Homebrew.pkg || {
@@ -502,7 +635,12 @@ fi
 [ -x "$BREW_BIN" ] && eval "$("$BREW_BIN" shellenv)"
 brew_path="$(command -v brew)" || { echo "Homebrew was not found. Install Homebrew, then rerun setup.sh"; exit 1; }
 printf -v brew_quoted '%q' "$brew_path"
-profile_add brew "eval \"\$("$brew_quoted" shellenv)\""
+brew_line="eval \"\$("$brew_quoted" shellenv)\""
+# A new Terminal must find this same Homebrew, not an older one beside it.
+# On a kit that is already installed, only when it finds none at all.
+if [ -x "$REELS/.tools/run" ]; then profile_add brew "$brew_line"
+else [ "$(fresh 'printf "\n"; whence -p brew' 2>/dev/null | tail -n 1)" = "$brew_path" ] || grep -qsF "$brew_line" "$HOME/.zprofile" || echo "$brew_line" >> "$HOME/.zprofile"
+fi
 # Use the same PATH a new Terminal (and the check) uses, so what is found is what runs.
 login_path="$(fresh 'printf "\n%s" "$PATH"' 2>/dev/null | tail -n 1)" && [ -n "$login_path" ] && export PATH="$login_path:$PATH"
 
@@ -518,7 +656,7 @@ ensure ffmpeg ffmpeg || exit 1
 ensure whisper-cli whisper.cpp || exit 1
 [ -d "/Applications/Google Chrome.app" ] || [ -d "$HOME/Applications/Google Chrome.app" ] || brew_install --cask google-chrome || exit 1
 
-if ! has claude; then
+if ! resolve_claude; then # a real program, not an alias from an old install
   fetch_run https://claude.ai/install.sh || { echo "Claude Code install failed. Fix the error above, then rerun setup.sh"; exit 1; }
 fi
 export PATH="$HOME/.local/bin:$PATH"
@@ -535,16 +673,25 @@ resolve_claude || { echo "Claude Code was not found in a new Terminal. Fix its i
 # installed long ago and never run has not updated itself, so on the first
 # plugin step that fails, setup updates Claude Code once and tries again.
 claude_updated=''
+claude_update_failed=''
 claude_step() { # claude_step "<what>" <claude arguments...>
-  local what="$1"; shift
+  local what="$1" ver; shift
   "$claude_bin" "$@" && return 0
   if [ -z "$claude_updated" ]; then
     claude_updated=1
-    echo "That step failed with Claude Code $("$claude_bin" --version 2>/dev/null). Updating Claude Code, then trying it again..."
-    "$claude_bin" update || echo "Claude Code could not update itself."
+    ver="$("$claude_bin" --version 2>/dev/null)"
+    echo "That step failed with Claude Code ${ver%% *}. Updating Claude Code, then trying it again..."
+    "$claude_bin" update || { claude_update_failed=1; echo "Claude Code could not update itself."; }
     resolve_claude && "$claude_bin" "$@" && return 0
   fi
-  echo "$what failed with Claude Code $("$claude_bin" --version 2>/dev/null). Update Claude Code (open Terminal, type: claude update), then rerun setup.sh"
+  ver="$("$claude_bin" --version 2>/dev/null)"
+  # Name the update only when it is what is missing: a step also fails with
+  # no internet, and then updating changes nothing.
+  if [ -n "$claude_update_failed" ]; then
+    echo "$what failed with Claude Code ${ver%% *}, which could not update itself. Update Claude Code (open Terminal, type: claude update), then rerun setup.sh"
+  else
+    echo "$what failed with Claude Code ${ver%% *}. The error is above. Check the internet connection, then rerun setup.sh"
+  fi
   return 1
 }
 claude_step "Instagram skills marketplace setup" plugin marketplace add --scope project "$INSTAGRAM_MARKETPLACE" || exit 1

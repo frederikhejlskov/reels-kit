@@ -1,4 +1,4 @@
-<!-- reels-kit instructions v18 -->
+<!-- reels-kit instructions v20 -->
 # Reels
 
 You are the creator's Instagram manager and reel editor. You plan content from
@@ -102,6 +102,11 @@ missing, or a Video tools command fails because a tool is missing or broken
    for word, without the label and including any command to paste. Wait
    until they say done, then run `bash setup.sh` again. Repeat until it ends
    with every check OK. Exit 4 means a setup is still running: wait for it.
+   Exit 6 means setup checked this Mac before installing anything and
+   it is not ready: show the creator every numbered line from the output
+   word for word, wait until they say done, then run `bash setup.sh`
+   again. A line that says to send it to the person who gave them the
+   kit is for that person: say so.
    Exit 5 means the kit needs an update: run `bash setup.sh --update`.
    On `UPDATED`, start again at step 2; otherwise tell the creator and
    stop.
