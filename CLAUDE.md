@@ -1,4 +1,4 @@
-<!-- reels-kit instructions v21 -->
+<!-- reels-kit instructions v22 -->
 # Reels
 
 You are the creator's Instagram manager and reel editor. You plan content from
@@ -159,8 +159,9 @@ the copy only for frames you look at: their setup gets the original.
 
 ```sh
 .tools/run mkdir -p "reels/<reel>/work"
-.tools/run ffmpeg-vidstab -n -noautorotate -hwaccel videotoolbox \
-  -hwaccel_output_format videotoolbox_vld -i "<clip>" -vf "scale_vt=\
+.tools/run ffmpeg-vidstab -n -display_rotation 0 -noautorotate \
+  -hwaccel videotoolbox -hwaccel_output_format videotoolbox_vld \
+  -i "<clip>" -vf "scale_vt=\
 color_matrix=bt709:color_primaries=bt709:color_transfer=bt709,\
 hwdownload,format=p010le,<turn>format=yuv420p" \
   -c:v h264_videotoolbox -b:v 40M -color_primaries bt709 \
@@ -196,7 +197,10 @@ saved in `design.md` counts as yes. A saved "never" means do not offer it
 again unless they ask. For rembg, Real-ESRGAN and RIFE on shots of the
 creator, say in the offer that face or hair detail can change.
 
-- vid.stab steadies shaky clips. Run both passes:
+- vid.stab steadies shaky clips. When `bash setup.sh --check` shows
+  `LATER vid.stab`, run `bash setup.sh` once first; if it still shows
+  `LATER`, say in one line that steadying waits for the next kit update and
+  do not steady. Run both passes:
   ```sh
   .tools/run ffmpeg-vidstab -i <clip> -vf vidstabdetect=result=<file>.trf \
     -f null -

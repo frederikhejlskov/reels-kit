@@ -20,7 +20,7 @@ if [ "$#" -gt 1 ]; then echo "Use --check, --update or no arguments"; exit 2; fi
 case "${1:-}" in ""|--check|--update) ;; *) echo "Unknown option: $1 (use --check, --update or nothing)"; exit 2;; esac
 KIT="$(cd "$(dirname "$0")" && pwd)"
 REELS="${REELS_DIR:-$KIT}"
-MARKER='<!-- reels-kit instructions v21 -->'
+MARKER='<!-- reels-kit instructions v22 -->'
 # Where newer versions of the kit come from, and the key their file list
 # must be signed with. A version is taken only when that signature is good,
 # every file matches the list, and it is newer than the one in this folder.
@@ -75,7 +75,14 @@ DEMUCS_REV=cbc8a9b1a87023b7fd74e7b3412e6321c0eab003
 REMBG_SHA=60920e99c45464f2ba57bee2ad08c919a52bbf852739e96947fbb4358c0d964a
 scene_test='test -x "$1/.tools/venv/bin/scenedetect" && "$2" scenedetect version'
 auto_test='test -x "$1/.tools/venv/bin/auto-editor" && test -x "$1/.tools/venv/bin/python" && p="$("$1/.tools/venv/bin/python" -c "import auto_editor,os;print(os.path.dirname(auto_editor.__file__))")/bin/auto-editor" && test -x "$p" && test "$(shasum -a 256 "$p" | cut -d " " -f 1)" = "$4" && "$2" auto-editor --version'
+# FFmpeg 8.1.1, which older kits built, garbles steadied clips when it runs
+# on several cores: a kit with any other version than this one rebuilds.
+# vidstab_test says vid.stab works (the check and the final check use it);
+# vidstab_current also needs this version, and only decides on a rebuild.
+FFMPEG_VERSION=9.1
+FFMPEG_SHA=1a4d394ae63d190a526cd052eb4415c156b5c5e2df37efab41a7de0b8fde2433
 vidstab_test='test -x "$1/.tools/ffmpeg-vidstab/bin/ffmpeg-vidstab" && { out="$("$2" "$1/.tools/ffmpeg-vidstab/bin/ffmpeg-vidstab" -hide_banner -filters 2>&1)" && printf "%s\n" "$out" | grep vidstabtransform >/dev/null || { printf "%s\n" "$out"; false; }; }'
+vidstab_current="$vidstab_test"' && "$2" "$1/.tools/ffmpeg-vidstab/bin/ffmpeg-vidstab" -version | head -n 1 | grep -q "^ffmpeg version '"$FFMPEG_VERSION"' "'
 color_test='test -x "$1/.tools/venv/bin/color-matcher" && "$2" color-matcher -h'
 rembg_test='test -x "$1/.tools/venv/bin/rembg" && "$2" rembg --help && { test "$3" = packages || { p="$1/.tools/models/models/isnet-general-use/isnet-general-use.onnx" && test -f "$p" && test "$(shasum -a 256 "$p" | cut -d " " -f 1)" = "$5"; }; }'
 rife_test='test -x "$1/.tools/rife/rife-ncnn-vulkan" && test -f "$1/.tools/rife/rife-v4.6/flownet.bin" && test -f "$1/.tools/rife/rife-v4.6/flownet.param" && { out="$("$2" rife-ncnn-vulkan -h 2>&1)"; printf "%s\n" "$out" | grep -qi usage || { printf "%s\n" "$out"; false; }; }'
@@ -184,7 +191,11 @@ check() {
   else
     video_line "PySceneDetect" "$scene_test"
     video_line "Auto-Editor" "$auto_test"
-    video_line "vid.stab" "$vidstab_test"
+    # A kit that kept its old build after a failed rebuild steadies badly:
+    # LATER makes the session run setup again before it steadies a clip.
+    if video_ok "$vidstab_test" "$REELS/.tools/run" && ! video_ok "$vidstab_current" "$REELS/.tools/run"; then
+      echo "LATER vid.stab: its update is not finished; run setup.sh to try again"
+    else video_line "vid.stab" "$vidstab_test"; fi
     video_line "color-matcher" "$color_test"
     video_line "rembg" "$rembg_test"
     video_line "RIFE" "$rife_test"
@@ -823,13 +834,38 @@ if ! video_ok "$demucs_test" "$RUN"; then
   demucs_model_setup || exit 1
 fi
 mkdir -p "$TOOLS/ffmpeg-vidstab/bin" && ln -sf ffmpeg "$TOOLS/ffmpeg-vidstab/bin/ffmpeg-vidstab" || { echo "Could not create the vid.stab launcher. Run setup again."; exit 1; }
-if ! video_ok "$vidstab_test" "$RUN"; then
-  work="$(mktemp -d "$TOOLS/ffmpeg-build.XXXXXX")" || { echo "Could not create the vid.stab build folder. Run setup again."; exit 1; }
-  fetch_pinned https://ffmpeg.org/releases/ffmpeg-8.1.1.tar.xz b6863adde98898f42602017462871b5f6333e65aec803fdd7a6308639c52edf3 "$work/source.tar.xz" vid.stab || { rm -rf "$work"; exit 1; }
-  (cd "$work" && tar -xf source.tar.xz && cd ffmpeg-8.1.1 && PKG_CONFIG_PATH="$(brew --prefix)/lib/pkgconfig:$(brew --prefix libvidstab)/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}" ./configure --prefix="$TOOLS/ffmpeg-vidstab" --enable-gpl --enable-libvidstab --enable-videotoolbox --enable-audiotoolbox --disable-doc --disable-ffplay --disable-network --disable-debug && make -j"$(sysctl -n hw.ncpu)" && make install) > "$TOOLS/ffmpeg-build.log" 2>&1 || { rm -rf "$work"; echo "vid.stab build failed. Run setup again."; tail -n 20 "$TOOLS/ffmpeg-build.log"; exit 1; }
+vidstab_build() { # builds into a new folder and swaps it in only once it passes
+  local work
+  work="$(mktemp -d "$TOOLS/ffmpeg-build.XXXXXX")" || { echo "Could not create the vid.stab build folder."; return 1; }
+  fetch_pinned "https://ffmpeg.org/releases/ffmpeg-$FFMPEG_VERSION.tar.xz" "$FFMPEG_SHA" "$work/source.tar.xz" vid.stab || { rm -rf "$work"; return 1; }
+  # Only libvidstab from Homebrew: a build that picks up other Homebrew
+  # libraries stops starting once Homebrew removes or upgrades them.
+  (cd "$work" && tar -xf source.tar.xz && cd "ffmpeg-$FFMPEG_VERSION" && PKG_CONFIG_LIBDIR="$(brew --prefix libvidstab)/lib/pkgconfig" PKG_CONFIG_PATH='' ./configure --prefix="$work/prefix" --disable-autodetect --enable-gpl --enable-libvidstab --enable-videotoolbox --enable-audiotoolbox --enable-zlib --disable-doc --disable-ffplay --disable-network --disable-debug && make -j"$(sysctl -n hw.ncpu)" && make install) > "$TOOLS/ffmpeg-build.log" 2>&1 || { rm -rf "$work"; echo "vid.stab build failed."; tail -n 20 "$TOOLS/ffmpeg-build.log"; return 1; }
   rm -f "$TOOLS/ffmpeg-build.log"
+  ln -sf ffmpeg "$work/prefix/bin/ffmpeg-vidstab" || { rm -rf "$work"; return 1; }
+  rm -rf "$TOOLS/ffmpeg-vidstab.old"
+  # The launcher folder always exists (made above), so there is always one to put back.
+  mv "$TOOLS/ffmpeg-vidstab" "$TOOLS/ffmpeg-vidstab.old" && mv "$work/prefix" "$TOOLS/ffmpeg-vidstab" || { rm -rf "$work"; [ -e "$TOOLS/ffmpeg-vidstab" ] || mv "$TOOLS/ffmpeg-vidstab.old" "$TOOLS/ffmpeg-vidstab"; return 1; }
   rm -rf "$work"
-  video_ok "$vidstab_test" "$RUN" || { echo "vid.stab check failed. Run setup again."; exit 1; }
+  if video_ok "$vidstab_current" "$RUN"; then rm -rf "$TOOLS/ffmpeg-vidstab.old"; return 0; fi
+  echo "vid.stab check failed."
+  rm -rf "$TOOLS/ffmpeg-vidstab"; mv "$TOOLS/ffmpeg-vidstab.old" "$TOOLS/ffmpeg-vidstab"
+  return 1
+}
+# A setup stopped inside vidstab_build's swap left the previous build beside
+# it: keep whichever works.
+if [ -d "$TOOLS/ffmpeg-vidstab.old" ]; then
+  if video_ok "$vidstab_test" "$RUN"; then rm -rf "$TOOLS/ffmpeg-vidstab.old"
+  else rm -rf "$TOOLS/ffmpeg-vidstab" && mv "$TOOLS/ffmpeg-vidstab.old" "$TOOLS/ffmpeg-vidstab"; fi
+fi
+if ! video_ok "$vidstab_current" "$RUN"; then
+  # A kit that already steadies keeps its build when the new one cannot be
+  # made (an update must not stop a working kit); setup tries again next run.
+  if video_ok "$vidstab_test" "$RUN"; then
+    vidstab_build || echo "vid.stab could not be updated. The version on this Mac stays until setup runs again."
+  else
+    vidstab_build || { echo "Run setup again."; exit 1; }
+  fi
 fi
 if ! video_ok "$rife_test" "$RUN"; then
   work="$(mktemp -d "$TOOLS/rife-build.XXXXXX")" || { echo "Could not create the RIFE install folder. Run setup again."; exit 1; }

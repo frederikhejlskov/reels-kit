@@ -1,8 +1,8 @@
-reels-kit 21
-notes Setup now brings Claude Code up to date by itself first, so an old Claude no longer stops the install.
-99405b9abc7b73179ee8bf4084756e8224cfe9e140065837a8b3bab0d1488081  CLAUDE.md
+reels-kit 22
+notes Steadying shaky clips no longer garbles the picture; this update rebuilds the video tool once (a few minutes).
+c3e5cf68d8d040fab0c980a5550b0690700550485041dbffb10a87e935e4dc31  CLAUDE.md
 03d7cc3e7bba1ad06c91229c25aa3f91d02f1eb266ee88906a5678b75a5a9ab3  README.md
-09ce42598f93adce372c5b6cc5aae82eaa4a6db598e3506a2d1592cefcd109a0  setup.sh
+9584ec2ee72e7aacd96414e3ab24b1bb5cac0693b86ee395fb1db2de976ae31a  setup.sh
 eed1bbb82c4ad150111540e825eb4d24521764eb3ef5bdc7f939ab665cdff30f  tools/palmier.py
 71e2b35ce5e8bda3a5d8b4f3c26dbfffdda087c0b20adde552de6f3aaffd86bf  tools/past-chats.py
 d5f385b4bc33e7fe17b64312a778b2761b3bb5aa825c3acf5c66648f576fcd43  tools/run
