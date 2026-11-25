@@ -1,8 +1,8 @@
-reels-kit 24
-notes New: cinematic reels, where your footage and music carry it. Drop reels you love into setup/references and Claude matches their pace, framing and look.
-28275d555612268abf27fbcceb4845c8991b4010c493952adc1ee766ae2242c5  CLAUDE.md
-70ef711881f78ef16145d9338c9743d76137b6854fb6cfe7bf7c22077512ef90  README.md
-c558818df5bec26423e7e97091f7fc8ad78fcbf9b660ab724a748f1793c83de2  setup.sh
+reels-kit 25
+notes The kit's page on GitHub has a new look with a real photo. Nothing changes in how the kit works.
+4be1afca79374fa512c3a09bebdc7a82b5e657e6da08bdb1e214e7e14c9b9ee2  CLAUDE.md
+a5480b736add4f37007df92ccaf0b6ea56f1625f7497671dce16fce361745991  README.md
+35bf56b415c5438dc195d68a46d76f82b3806a07f31892a791c4cf339dd8190e  setup.sh
 75213406f187537e8b146d68fee14d25cdd7c588ed1a0f1ae1aedff437389e83  tools/cinematic/cinematic.md
 301f7a02a2043b6a6bfc3175161dfdb1131d073dcdbb6765de0c6a50985dc469  tools/cinematic/measure.sh
 eed1bbb82c4ad150111540e825eb4d24521764eb3ef5bdc7f939ab665cdff30f  tools/palmier.py

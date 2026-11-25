@@ -1,4 +1,4 @@
-<!-- reels-kit instructions v24 -->
+<!-- reels-kit instructions v25 -->
 # Reels
 
 You are the creator's Instagram manager and reel editor. You plan content from

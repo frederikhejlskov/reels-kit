@@ -1,21 +1,33 @@
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="page/banner-dark.png">
-  <img src="page/banner-light.png" width="100%" alt="Reels kit. Your
-    footage. Your words. Finished Instagram reels, made with Claude.">
-</picture>
+<h1 align="center">Reels kit</h1>
+
+<p align="center">
+  <em>Film it and say what you want. Claude turns it into a finished<br>
+  Instagram reel, in your words, on your Mac.</em>
+</p>
 
 <p align="center">
   <img alt="Mac with Apple chip"
-    src="https://img.shields.io/badge/Mac-Apple%20chip-1d1a15?logo=apple">
+src="https://img.shields.io/badge/Mac-Apple%20chip-111111?style=flat-square">
   <img alt="macOS 15 or newer"
-    src="https://img.shields.io/badge/macOS-15%2B-1d1a15">
-  <img alt="Claude Pro or higher"
-    src="https://img.shields.io/badge/Claude-Pro%20or%20higher-e4502c">
+src="https://img.shields.io/badge/macOS-15%2B-111111?style=flat-square">
+  <img alt="Paid Claude plan"
+src="https://img.shields.io/badge/Claude-paid%20plan-111111?style=flat-square">
   <img alt="Free tools"
-    src="https://img.shields.io/badge/tools-free-2f5d62">
+src="https://img.shields.io/badge/tools-free-111111?style=flat-square">
 </p>
 
-# Reels kit
+<p align="center">
+  <a href="#install">Install</a> &middot;
+  <a href="#updates">Updates</a> &middot;
+  <a href="#already-make-reels-with-claude">Already make reels?</a> &middot;
+  <a href="#every-day">Every day</a> &middot;
+  <a href="#good-to-know">Good to know</a>
+</p>
+
+<p align="center">
+  <img src="page/hero.jpg" width="880"
+    alt="Working on two laptops in an open room, the sea behind">
+</p>
 
 An Instagram manager and reel editor that runs in the Claude app. You
 film and say what you want. Claude plans, writes and edits, and you post.
