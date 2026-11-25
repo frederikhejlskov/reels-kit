@@ -1,22 +1,46 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="page/banner-dark.png">
+  <img src="page/banner-light.png" width="100%" alt="Reels kit. Your
+    footage. Your words. Finished Instagram reels, made with Claude.">
+</picture>
+
+<p align="center">
+  <img alt="Mac with Apple chip"
+    src="https://img.shields.io/badge/Mac-Apple%20chip-1d1a15?logo=apple">
+  <img alt="macOS 15 or newer"
+    src="https://img.shields.io/badge/macOS-15%2B-1d1a15">
+  <img alt="Claude Pro or higher"
+    src="https://img.shields.io/badge/Claude-Pro%20or%20higher-e4502c">
+  <img alt="Free tools"
+    src="https://img.shields.io/badge/tools-free-2f5d62">
+</p>
+
 # Reels kit
 
-An Instagram manager and reel editor that runs in the Claude app. It finds
-what is working on pages like yours, brings you reel ideas with hooks, turns
-your talking-to-camera footage, b-roll and photos into finished reels, and
-learns from your feedback. Scripts start from what you want to say: you
-tell Claude in a voice note or rough notes, and it writes the script in
-your words. The kit uses the
-Instagram skills (github.com/Jakeschincariol/instagram-agent-skill),
-HyperFrames (github.com/heygen-com/hyperframes) and a script method
-adapted from Ekos Labs (github.com/Ekos-Labs/skills), which is included
-in the kit as text. On a Mac with macOS 26
-or newer it edits in Palmier Pro (github.com/palmier-io/palmier-pro), a
-free video editor app where you watch every change live and nothing is
-rendered until the reel is ready. You need a paid Claude plan (Pro or
-higher), the Claude app, and a Mac with an Apple chip (M1 or newer) on
-macOS 15 or newer. On an older macOS the install stops and asks you to
-update macOS first, because the tools would otherwise be built from
-scratch for hours.
+An Instagram manager and reel editor that runs in the Claude app. You
+film and say what you want. Claude plans, writes and edits, and you post.
+
+- **Ideas that work.** It finds what is working on pages like yours and
+  brings you reel ideas with hooks.
+- **Scripts in your words.** Tell Claude what you want to say in a voice
+  note or rough notes, and it writes the script the way you talk.
+- **Finished reels.** It turns your talking-to-camera footage, b-roll and
+  photos into finished reels. On macOS 26 or newer it edits in Palmier
+  Pro, a free video editor app where you watch every change live and
+  nothing is rendered until the reel is ready.
+- **It learns.** Tell it once what you don't like, and it remembers.
+
+**You need** a Mac with an Apple chip (M1 or newer) on macOS 15 or newer,
+the Claude app and a paid Claude plan (Pro or higher). On an older macOS
+the install stops and asks you to update macOS first, because the tools
+would otherwise be built from scratch for hours.
+
+<sub>Built on the
+[Instagram skills](https://github.com/Jakeschincariol/instagram-agent-skill),
+[HyperFrames](https://github.com/heygen-com/hyperframes),
+[Palmier Pro](https://github.com/palmier-io/palmier-pro) and a script
+method adapted from [Ekos Labs](https://github.com/Ekos-Labs/skills),
+which is included in the kit as text.</sub>
 
 ## Install
 

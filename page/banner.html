@@ -1,0 +1,118 @@
+<!doctype html>
+<!-- Source of the README banner. Render both PNGs with: bash page/render.sh -->
+<html>
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Familjen+Grotesk:wght@500;600&display=block" rel="stylesheet">
+<style>
+:root {
+  --paper: #f3ede2; --ink: #1d1a15; --soft: #6f675b; --line: #d9d0c0;
+  --rec: #e4502c; --sky1: #f6b26b; --sky2: #e4502c; --sea: #2f5d62;
+  --card: #fffaf1; --shadow: rgba(60, 40, 20, .18);
+}
+.dark {
+  --paper: #14120f; --ink: #f3ede2; --soft: #a39a8b; --line: #2e2a24;
+  --card: #1f1c17; --shadow: rgba(0, 0, 0, .55);
+}
+* { margin: 0; box-sizing: border-box; }
+html, body { width: 1280px; height: 400px; overflow: hidden; }
+body {
+  background: var(--paper); color: var(--ink); position: relative;
+  font-family: "Familjen Grotesk", sans-serif;
+}
+body::after { /* paper grain */
+  content: ""; position: absolute; inset: 0; opacity: .05; pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.copy { position: absolute; left: 72px; top: 70px; width: 600px; }
+.kicker {
+  font-size: 15px; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--soft); font-weight: 600; display: flex; align-items: center; gap: 10px;
+}
+.kicker i { width: 10px; height: 10px; border-radius: 50%; background: var(--rec); display: block; }
+h1 {
+  font-family: "Instrument Serif", serif; font-weight: 400;
+  font-size: 128px; line-height: .92; letter-spacing: -.02em; margin-top: 18px;
+}
+h1 em { color: var(--rec); }
+.tag { font-size: 24px; line-height: 1.35; margin-top: 22px; color: var(--soft); font-weight: 500; }
+.tag b { color: var(--ink); font-weight: 600; }
+
+/* three reels, fanned */
+.reels { position: absolute; right: 64px; top: 26px; width: 500px; height: 290px; }
+.reel {
+  position: absolute; top: 0; width: 148px; height: 263px; border-radius: 18px;
+  background: var(--card); box-shadow: 0 18px 40px var(--shadow); overflow: hidden;
+  border: 1px solid var(--line);
+}
+.reel .bars { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; gap: 4px; z-index: 2; }
+.reel .bars span { flex: 1; height: 3px; border-radius: 2px; background: rgba(255,255,255,.45); }
+.reel .bars span.on { background: #fff; }
+.reel .cap {
+  position: absolute; left: 12px; right: 12px; bottom: 26px; z-index: 2;
+  font-family: "Instrument Serif", serif; font-size: 21px; line-height: 1.02; color: #fff;
+  text-shadow: 0 2px 10px rgba(0,0,0,.35);
+}
+.r1 { left: 0; transform: rotate(-7deg) translateY(16px); }
+.r2 { left: 176px; z-index: 3; transform: translateY(-6px); }
+.r3 { left: 352px; transform: rotate(7deg) translateY(16px); }
+.r1 .img { background: linear-gradient(180deg, #7fb3b0 0%, var(--sea) 70%, #1f3f43 100%); }
+.r2 .img { background: radial-gradient(circle at 50% 62%, #ffe2a8 0 14%, transparent 15%),
+  linear-gradient(180deg, var(--sky1) 0%, var(--sky2) 55%, #7a2a1a 100%); }
+.r3 .img { background: linear-gradient(160deg, #e9d8bd 0%, #c49a6c 60%, #6b4a2e 100%); }
+.img { position: absolute; inset: 0; }
+.r2 .img::after { /* horizon */
+  content: ""; position: absolute; left: 0; right: 0; top: 64%; bottom: 0;
+  background: linear-gradient(180deg, #2f5d62, #16302f);
+}
+.r3 .img::before, .r3 .img::after { /* a person, talking to camera */
+  content: ""; position: absolute; left: 50%; transform: translateX(-50%); background: #4a3424;
+}
+.r3 .img::before { top: 62px; width: 62px; height: 72px; border-radius: 50%; }
+.r3 .img::after { bottom: -20px; width: 128px; height: 120px; border-radius: 64px 64px 0 0; }
+
+/* timeline */
+.timeline { position: absolute; left: 72px; right: 64px; bottom: 30px; height: 30px; }
+.track { position: absolute; inset: 9px 0 auto 0; height: 12px; display: flex; gap: 5px; }
+.track span { height: 12px; border-radius: 4px; background: var(--line); }
+.track span.a { background: var(--sea); opacity: .75; }
+.track span.b { background: var(--sky1); opacity: .85; }
+.track span.c { background: #c49a6c; opacity: .85; }
+.playhead { position: absolute; left: 62%; top: 0; width: 3px; height: 30px; background: var(--rec); border-radius: 2px; }
+.playhead::before {
+  content: ""; position: absolute; top: -6px; left: -5px; width: 13px; height: 13px;
+  border-radius: 50%; background: var(--rec);
+}
+</style>
+</head>
+<body>
+<div class="copy">
+  <div class="kicker"><i></i>For creators on a Mac</div>
+  <h1>Reels <em>kit</em></h1>
+  <p class="tag"><b>Your footage. Your words.</b><br>Finished Instagram reels, made with Claude.</p>
+</div>
+
+<div class="reels">
+  <div class="reel r1"><div class="img"></div>
+    <div class="bars"><span class="on"></span><span></span><span></span></div>
+    <div class="cap">3 hooks that worked this week</div></div>
+  <div class="reel r2"><div class="img"></div>
+    <div class="bars"><span class="on"></span><span class="on"></span><span></span></div>
+    <div class="cap">Sunset, steadied and cut to the beat</div></div>
+  <div class="reel r3"><div class="img"></div>
+    <div class="bars"><span class="on"></span><span class="on"></span><span class="on"></span></div>
+    <div class="cap">Said it once. Script in my words.</div></div>
+</div>
+
+<div class="timeline">
+  <div class="track">
+    <span class="a" style="flex:3"></span><span class="b" style="flex:2"></span>
+    <span class="c" style="flex:4"></span><span style="flex:1"></span>
+    <span class="a" style="flex:2"></span><span class="b" style="flex:3"></span>
+    <span class="c" style="flex:2"></span><span style="flex:2"></span>
+  </div>
+  <div class="playhead"></div>
+</div>
+<script>if (location.hash === "#dark") document.documentElement.className = "dark";</script>
+</body>
+</html>
