@@ -26,7 +26,7 @@ src="https://img.shields.io/badge/tools-free-111111?style=flat-square">
 
 <p align="center">
   <img src="page/hero.jpg" width="880"
-    alt="Working on two laptops in an open room, the sea behind">
+    alt="Silhouette at two laptops, the sea and palm trees behind">
 </p>
 
 An Instagram manager and reel editor that runs in the Claude app. You

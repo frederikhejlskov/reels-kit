@@ -20,7 +20,7 @@ if [ "$#" -gt 1 ]; then echo "Use --check, --update or no arguments"; exit 2; fi
 case "${1:-}" in ""|--check|--update) ;; *) echo "Unknown option: $1 (use --check, --update or nothing)"; exit 2;; esac
 KIT="$(cd "$(dirname "$0")" && pwd)"
 REELS="${REELS_DIR:-$KIT}"
-MARKER='<!-- reels-kit instructions v25 -->'
+MARKER='<!-- reels-kit instructions v26 -->'
 # Where newer versions of the kit come from, and the key their file list
 # must be signed with. A version is taken only when that signature is good,
 # every file matches the list, and it is newer than the one in this folder.

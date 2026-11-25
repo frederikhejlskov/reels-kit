@@ -1,8 +1,8 @@
-reels-kit 25
-notes The kit's page on GitHub has a new look with a real photo. Nothing changes in how the kit works.
-4be1afca79374fa512c3a09bebdc7a82b5e657e6da08bdb1e214e7e14c9b9ee2  CLAUDE.md
-a5480b736add4f37007df92ccaf0b6ea56f1625f7497671dce16fce361745991  README.md
-35bf56b415c5438dc195d68a46d76f82b3806a07f31892a791c4cf339dd8190e  setup.sh
+reels-kit 26
+notes The photo on the kit's GitHub page changed. Nothing changes in how the kit works.
+8f01d9a9c974a9254df06cd2653060d89c2e18fc48a4dddfed131c542f206681  CLAUDE.md
+b9d710242d6bd886ada5e1ef90b6d6ef7ecb1d3d18d69e062c06468e549a46f5  README.md
+d364e639570315602e5149c3040720da0ddb89779cb0989c57edfe86360ab14f  setup.sh
 75213406f187537e8b146d68fee14d25cdd7c588ed1a0f1ae1aedff437389e83  tools/cinematic/cinematic.md
 301f7a02a2043b6a6bfc3175161dfdb1131d073dcdbb6765de0c6a50985dc469  tools/cinematic/measure.sh
 eed1bbb82c4ad150111540e825eb4d24521764eb3ef5bdc7f939ab665cdff30f  tools/palmier.py
