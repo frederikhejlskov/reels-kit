@@ -149,6 +149,12 @@ for example "make a reel from today's footage" or "give me ideas for next
 week". Claude shows you the edit plan first and waits for your yes. You post
 the reel yourself.
 
+Talking reels or cinematic ones, where the footage and music carry it:
+Claude asks which you make, and any reel can be the other kind. Reels you
+love: screen-record three to five on your phone and drop them into
+`setup/references`. Claude matches your cinematic reels to their pace,
+framing and look.
+
 When you don't like something, say so. Claude fixes it and, if it should
 apply to every reel, saves it so you never have to repeat it. Your details
 live in files in the `Reels` folder (`profile.md`, `voice.md`, `design.md`,

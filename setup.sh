@@ -20,7 +20,7 @@ if [ "$#" -gt 1 ]; then echo "Use --check, --update or no arguments"; exit 2; fi
 case "${1:-}" in ""|--check|--update) ;; *) echo "Unknown option: $1 (use --check, --update or nothing)"; exit 2;; esac
 KIT="$(cd "$(dirname "$0")" && pwd)"
 REELS="${REELS_DIR:-$KIT}"
-MARKER='<!-- reels-kit instructions v23 -->'
+MARKER='<!-- reels-kit instructions v24 -->'
 # Where newer versions of the kit come from, and the key their file list
 # must be signed with. A version is taken only when that signature is good,
 # every file matches the list, and it is newer than the one in this folder.
@@ -676,7 +676,7 @@ fi
 export PATH="$HOME/.local/bin:$PATH"
 profile_add claude 'export PATH="$HOME/.local/bin:$PATH"'
 
-mkdir -p "$REELS/reels" "$REELS/scripts" "$REELS/setup/best-reels" "$REELS/setup/audience" "$REELS/setup/brand" "$REELS/sources" || exit 1
+mkdir -p "$REELS/reels" "$REELS/scripts" "$REELS/setup/best-reels" "$REELS/setup/audience" "$REELS/setup/brand" "$REELS/setup/references" "$REELS/sources" || exit 1
 REELS="$(cd "$REELS" && pwd -P)"
 [ -f "$REELS/CLAUDE.md" ] || cp "$KIT/CLAUDE.md" "$REELS/CLAUDE.md" || { echo "The kit's CLAUDE.md is missing. Download the kit again."; exit 1; }
 

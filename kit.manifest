@@ -1,8 +1,10 @@
-reels-kit 23
-notes The kit's page on GitHub has a new look. Nothing changes in how the kit works.
-e8d4c4dbc7ee9f761f3951463f17233523d4901cfbfbf8efdb0d9ad6fea316ce  CLAUDE.md
-01fb3173af8cf70db588d66955baa289d3bc740bc069ed9d022806975a9e2903  README.md
-edeca751e40874c776b41126af479c83a862dec1bb9cd587d0c2389eefc10fdd  setup.sh
+reels-kit 24
+notes New: cinematic reels, where your footage and music carry it. Drop reels you love into setup/references and Claude matches their pace, framing and look.
+28275d555612268abf27fbcceb4845c8991b4010c493952adc1ee766ae2242c5  CLAUDE.md
+70ef711881f78ef16145d9338c9743d76137b6854fb6cfe7bf7c22077512ef90  README.md
+c558818df5bec26423e7e97091f7fc8ad78fcbf9b660ab724a748f1793c83de2  setup.sh
+75213406f187537e8b146d68fee14d25cdd7c588ed1a0f1ae1aedff437389e83  tools/cinematic/cinematic.md
+301f7a02a2043b6a6bfc3175161dfdb1131d073dcdbb6765de0c6a50985dc469  tools/cinematic/measure.sh
 eed1bbb82c4ad150111540e825eb4d24521764eb3ef5bdc7f939ab665cdff30f  tools/palmier.py
 71e2b35ce5e8bda3a5d8b4f3c26dbfffdda087c0b20adde552de6f3aaffd86bf  tools/past-chats.py
 d5f385b4bc33e7fe17b64312a778b2761b3bb5aa825c3acf5c66648f576fcd43  tools/run
