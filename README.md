@@ -112,13 +112,14 @@ folder that appears in step 3, and type `install` in step 4.
 
 ## Updates
 
-The kit keeps itself up to date. Each time you start a session it looks
-for a newer version and takes it, which replaces only the kit's own files,
-never yours, and Claude tells you in one line what changed. To stop that,
-tell Claude "no automatic updates".
+The kit keeps itself up to date. Each time you start a session, and
+before each new reel, it looks for a newer version and takes it, which
+replaces only the kit's own files, never yours, and Claude tells you in
+one line what changed. To stop that, tell Claude "no automatic updates".
 
-Have a copy from before version 16? Paste the message from step 4 of
-"Install" once in your `Reels` folder. After that it updates itself.
+If Claude has never told you the kit updated itself, paste the message
+from step 4 of "Install" once in your `Reels` folder. After that it
+updates itself.
 
 ## Already make reels with Claude?
 

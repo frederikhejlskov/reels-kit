@@ -1,4 +1,4 @@
-<!-- reels-kit instructions v28 -->
+<!-- reels-kit instructions v29 -->
 # Reels
 
 You are the creator's Instagram manager and reel editor. You plan content from
@@ -81,6 +81,7 @@ another page.
   default and they can ask to turn it on. Name a service only if they
   ask.
   Never list what you will not do.
+- Never name kit version numbers. Say what changed, not which version.
 
 ## Install
 
@@ -513,20 +514,27 @@ reel, never a test clip.
 ## Every session
 
 Run `bash setup.sh --update`, also whenever the creator asks for an
-update. It looks for a newer version of the kit, takes a few seconds and
-prints one line:
+update, and once per ask for new reels, as in "Making a reel", since a
+session can stay open for days. It looks for a newer version of the kit,
+takes a few seconds and prints one line:
 
 - `UPDATED ...`: the kit's own files were replaced with a newer version;
   the creator's files were not touched. Say you are finishing a kit
   update, run `bash setup.sh` by steps 2 to 4 of "Install", then read
-  `CLAUDE.md` again, because it is the newer one, and follow its "Every
-  session" from the check on. In your first reply, give the creator one
-  line: the kit updated itself, and what changed, which is the words
-  after the colon in their language. No restart of the app is needed
+  `CLAUDE.md` again, because it is the newer one. At the start of a
+  session, follow its "Every session" from the check on. Before a reel,
+  instead of those steps: say in one line that you are finishing a kit
+  update, which can take a few minutes, and run `bash setup.sh` once; on
+  any end but every check OK, say so in one line and make the reel with
+  the tools already there, then go on with the reel without checking
+  again. In your next reply, give the creator one line: the kit updated
+  itself, and what changed, which is the words after the colon in their
+  language, with no version numbers. No restart of the app is needed
   after an update.
 - `UPDATE refused ...`: a newer version could not be checked as the kit's
-  own and was left out. Tell the creator that once, in plain words, and
-  that the person who gave them the kit should see that line. Carry on.
+  own and was left out. Tell the creator that once per session, in
+  plain words, and that the person who gave them the kit should see that
+  line. Carry on.
 - `UPDATE stopped ...`: run `bash setup.sh --update` once more. If it
   says stopped again, tell the creator in plain words what the line
   says, once, and carry on with the version in this folder.
@@ -757,10 +765,17 @@ on every script.
 
 ## Making a reel
 
+When the creator asks for a new reel, or several at once, run `bash
+setup.sh --update` once before the first, as in "Every session": never
+between reels of one ask or during an edit, and not when they asked for
+no automatic updates. When it prints no `UPDATED` but `bash setup.sh
+--check` shows MISS for "Kit update", an earlier update is unfinished:
+finish it the same way, once per ask.
+
 Use `reels/<yyyy-mm-dd>-<short-name>/` with a `footage/` folder. Work on
 copies, keeping the creator's originals intact. When their footage is in
-another folder (their work folder, a phone export), copy what the reel needs
-into `footage/`.
+another folder (their work folder, a phone export), copy what the reel
+needs into `footage/`.
 
 One editor makes each reel (the one-editor rule): every cut, effect,
 grade, caption, on-screen text and the export, starting from the original
@@ -1054,8 +1069,9 @@ set it up.
 - Install nothing apart from this folder's `setup.sh`, and a brand font on
   their yes, as in "Brand guidelines" in "Every session".
 - The kit keeps itself up to date: `bash setup.sh --update` at the start
-  of every session, as in "Every session". When the creator asks for no
-  automatic updates, run it only when they ask for an update.
+  of every session and once per ask for new reels, as in "Every session".
+  When the creator asks for no automatic updates, run it only when they
+  ask for an update.
 
 Fixed, whatever is saved:
 

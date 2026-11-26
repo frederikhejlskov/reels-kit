@@ -1,8 +1,8 @@
-reels-kit 28
-notes New: drop your brand guidelines, brand fonts or logo into the brand folder inside setup, any time, and Claude uses them for your reels
-89aa0cb587b0285a935d5cfc0b1e9079104d5a96b40d3a356606141efc5dd9e7  CLAUDE.md
-605a8fec0c090c29b510e1a0b4e3795385c9c96f51fe40f986932b1a1b169258  README.md
-c9498ecc59d61b67790fd5b0f78d3ad650bbf07e6102132b78cf9e4578a03786  setup.sh
+reels-kit 29
+notes Claude also checks for kit updates when you ask for a new reel, so a session left open for days still gets fixes.
+8a0e6d3f4503c54ba2afb715946691f0531c34ef6d7160b1a2b75843c510f16b  CLAUDE.md
+f4088cf990f3562c89fe78f45333c011c3673e11846c89fafd1201beecc9bc32  README.md
+a9e8bceda04c7cbb3bd18cc2b062e206e22d66407d469f439bbe402a4f05f675  setup.sh
 1984e4e5a5ca3e671b93a1f1f6d92c0fcae97a7704ed083c2f7f557e7f111244  tools/cinematic/cinematic.md
 60a3b055c813e4fda9841d0007502b97840cf6ae9caeada88c3878cf9e5065d8  tools/cinematic/fetch.sh
 301f7a02a2043b6a6bfc3175161dfdb1131d073dcdbb6765de0c6a50985dc469  tools/cinematic/measure.sh
