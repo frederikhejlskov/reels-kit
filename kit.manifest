@@ -1,8 +1,8 @@
-reels-kit 27
-notes Paste links to reels or accounts you love: Claude saves and studies those reels, no screen recordings needed
-54271ba5f33406e0b2ef0f26cec1ec3e01ecb6eccc716249e895c8cc576a92fa  CLAUDE.md
-fbb609c2975670740f7ee6f3502eb5eb7f6a5a2dbcd6504d23b4441ed8a6e6b0  README.md
-7b41d7c0ded62b2b7db324242c66c2a082b156c9bd6a4c915197b08b274b9fa7  setup.sh
+reels-kit 28
+notes New: drop your brand guidelines, brand fonts or logo into the brand folder inside setup, any time, and Claude uses them for your reels
+89aa0cb587b0285a935d5cfc0b1e9079104d5a96b40d3a356606141efc5dd9e7  CLAUDE.md
+605a8fec0c090c29b510e1a0b4e3795385c9c96f51fe40f986932b1a1b169258  README.md
+c9498ecc59d61b67790fd5b0f78d3ad650bbf07e6102132b78cf9e4578a03786  setup.sh
 1984e4e5a5ca3e671b93a1f1f6d92c0fcae97a7704ed083c2f7f557e7f111244  tools/cinematic/cinematic.md
 60a3b055c813e4fda9841d0007502b97840cf6ae9caeada88c3878cf9e5065d8  tools/cinematic/fetch.sh
 301f7a02a2043b6a6bfc3175161dfdb1131d073dcdbb6765de0c6a50985dc469  tools/cinematic/measure.sh

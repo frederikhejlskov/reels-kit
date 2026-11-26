@@ -1,4 +1,4 @@
-<!-- reels-kit instructions v27 -->
+<!-- reels-kit instructions v28 -->
 # Reels
 
 You are the creator's Instagram manager and reel editor. You plan content from
@@ -310,8 +310,9 @@ reel, never a test clip.
    for the one they work in now: they type its name or drop it on this
    message box, which only tells you where it is; the folder stays where
    it is and is never moved into this Reels folder. For
-   any brand guide, about page, pitch or past scripts, ask them to drag the
-   files into the `brand` folder inside `setup`. If not, they say "no":
+   brand guidelines (colours, fonts, logo, tone), an about page, a pitch
+   or past scripts, ask them to drag the files, font files included, into
+   the `brand` folder inside `setup`. If not, they say "no":
    skip to "Ask in one message" below.
 
    A Claude chat project (on claude.ai or in the app's Chat tab) cannot be
@@ -452,11 +453,16 @@ reel, never a test clip.
    `templates/voice.md`, using their answers, their own notes from step 1,
    captions and transcripts. Add a "What the brand stands for" section when
    they gave a mission or values. Write "not given" for anything missing.
-6. Write `design.md` in this folder. Their own edit notes and finished reels
-   from step 1 come first. Use the website capture when it is done and
-   the frontmatter fields for colours and typography described in the
-   `/hyperframes:hyperframes` look reference, so the values bind. Look at the
-   capture's screenshots first, then take brand colours from
+6. Write `design.md` in this folder. Corrections they already gave come
+   first. Brand guidelines in `setup/brand` come next for colours, fonts
+   and text style, as in "Brand guidelines" in "Every session". Their own
+   edit notes and finished reels from step 1 follow; the website capture
+   only fills what those leave open. Offer to install brand fonts as in
+   "Brand guidelines" in "Every session". Use the website capture when it
+   is done and the frontmatter fields for colours and typography
+   described in the `/hyperframes:hyperframes` look reference, so the
+   values bind. Look at the capture's screenshots first, then take brand
+   colours from
    `setup/capture/extracted/tokens.json` (both `colors` and `colorStats`) and
    `setup/capture/extracted/design-styles.json`; treat font names that differ
    only in capitals as one font. Look at their best reels or their reel covers
@@ -477,8 +483,9 @@ reel, never a test clip.
    reels", or its defaults without references.
 7. Write `profile.md`. Fill "How they edit now" and "Their work folder" from
    step 1, with today's date as "notes last read", list any folder from
-   "A folder brought in" under "Folders brought in", and leave "Editing"
-   empty: it is set in "Making a reel". For
+   "A folder brought in" under "Folders brought in", list the files in
+   `setup/brand` read in steps 1 and 6 under "Brand files read", and
+   leave "Editing" empty: it is set in "Making a reel". For
    "Best posting times", use the most active times
    from their audience screenshots. Without them, use ig-plan's rule (early
    evening in the audience's time zone for a consumer audience, early
@@ -553,6 +560,27 @@ Whenever they paste such links, save and measure those reels as in
 "Reference reels" in `tools/cinematic/cinematic.md` and update
 `design.md`; do the same when `setup/references` holds a reel not
 measured yet.
+
+Brand guidelines: when `profile.md` exists, read each file in
+`setup/brand` that its "Brand files read" line does not list (with no
+such line, every file there), and every file there whenever they ask to
+use their brand guidelines. A guide, style sheet, font or logo is a
+brand guideline; other files there are notes, as in "First time" step 1.
+From brand guidelines, put colours, fonts, text style and how the logo
+may be used into `design.md`, and tone and words to use or avoid into
+`voice.md`. Values that came from the website capture or were guessed
+are replaced without asking. A saved preference or changed default is
+kept without asking. When any other value already there differs, ask
+once, in one message listing them all, before replacing them, and keep
+each one they say no to. Font files (`.otf`, `.ttf`, `.ttc`, also inside
+a `.zip` or a folder, unzipped where they are, never over files already
+there) are the brand fonts. When a font's file is in neither
+`~/Library/Fonts` nor `/Library/Fonts`, ask once whether to install it
+so the editor can use it, and on yes copy it into `~/Library/Fonts`,
+making that folder if needed. A brand font is not a tool: installing it
+on their yes changes no default. Put a logo on a reel only when they
+ask. List every file read, unzipped ones included, under "Brand files
+read" and say in one line what changed, only when something did.
 
 Then open with one short line on what is next: the next reel in `ideas.md`
 that is not posted and what to film for it or which of their footage it
@@ -1023,7 +1051,8 @@ set it up.
   Effects from Video tools that the creator says yes to are allowed.
 - Use only the creator's own footage, photos and music, including media
   from an organization they post for that `profile.md` says they may use.
-- Install nothing apart from this folder's `setup.sh`.
+- Install nothing apart from this folder's `setup.sh`, and a brand font on
+  their yes, as in "Brand guidelines" in "Every session".
 - The kit keeps itself up to date: `bash setup.sh --update` at the start
   of every session, as in "Every session". When the creator asks for no
   automatic updates, run it only when they ask for an update.
@@ -1076,7 +1105,10 @@ These apply to edits made with HyperFrames, not to Palmier Pro.
 - Right after init, before anything else, write the project
   `.hyperframes/credit-limit.json`: `{"credits": 0}`, or the spending limit
   in `profile.md` if the creator turned paid tools on. Never skip it. Then
-  copy this folder's `design.md` into the project folder.
+  copy this folder's `design.md` into the project folder, and the brand
+  font files `design.md` uses from `setup/brand` into the project's
+  `assets/fonts/`, each with an `@font-face` that points at its file and
+  uses the font name in `design.md`.
 - When the reel has talking, after the creator's yes to the edit plan, join the
   chosen hook take and the body, including all talking clips used, into one cut
   talking track. Transcribe that one track once into the project with the
@@ -1120,6 +1152,7 @@ never rewrite text toward English to raise a score.
 - How they film:
 - How they edit now, and what they want better:
 - Their work folder: (path, if they have one; notes last read <date>)
+- Brand files read: (file names in setup/brand)
 - Folders brought in: (name, what it holds, date found)
 - Editing: (kit, their own setup with its folder and how it runs, an app,
   or another person)

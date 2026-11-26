@@ -167,6 +167,10 @@ love: paste links to three to five of them in the chat, or a link to an
 account whose reels you love. Claude matches your cinematic reels to
 their pace, framing and look.
 
+Brand guidelines, brand fonts or a logo: drop them into `setup/brand` any
+time. Claude uses their colours, fonts and tone for your reels, adds your
+logo when you ask, and asks before installing a font.
+
 When you don't like something, say so. Claude fixes it and, if it should
 apply to every reel, saves it so you never have to repeat it. Your details
 live in files in the `Reels` folder (`profile.md`, `voice.md`, `design.md`,
