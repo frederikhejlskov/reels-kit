@@ -195,16 +195,21 @@ keep the best of each kind.
 
 - One look across the whole reel, from "Cinematic look".
 - Balance and match every clip first, as in step 6 of "Editing in
-  Palmier Pro". Then build the look on the hero clip with the film-look
+  Palmier Pro". Then build the look on the opening clip with the film-look
   recipes in `.tools/palmier-skills/skills/color-grading/SKILL.md`, and
   put the same look settings (curves, wheels, saturation) on every clip
-  with `apply_color`, passing only those settings, never the hero clip's
+  with `apply_color`, passing only those settings, never that clip's
   whole `color` grade, which would replace each clip's balance. Check
   each clip with `inspect_color` afterwards; the look moves
   `balance.warmCool` on purpose, so do not pull it back to neutral.
+- Run `tools/grade-check.py` on every clip again after the look, with
+  the same before frame. On a daylight clip, hue and saturation lines
+  are the look. On a dusk or night clip every line is still a fault:
+  turn the look down on that clip until the lines are gone.
 - Then `apply_effect`: a light `stylize.grain`, and `stylize.vignette`
   or `stylize.glow` only when the references show it.
-- In HyperFrames, build the same look with its own colour grading.
+- In HyperFrames, build the same look with its own colour grading,
+  checked the same way.
 - The HDR rules in `CLAUDE.md` do not change.
 
 ## Text and sound

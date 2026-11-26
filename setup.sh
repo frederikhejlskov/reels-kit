@@ -20,7 +20,7 @@ if [ "$#" -gt 1 ]; then echo "Use --check, --update or no arguments"; exit 2; fi
 case "${1:-}" in ""|--check|--update) ;; *) echo "Unknown option: $1 (use --check, --update or nothing)"; exit 2;; esac
 KIT="$(cd "$(dirname "$0")" && pwd)"
 REELS="${REELS_DIR:-$KIT}"
-MARKER='<!-- reels-kit instructions v29 -->'
+MARKER='<!-- reels-kit instructions v30 -->'
 # Where newer versions of the kit come from, and the key their file list
 # must be signed with. A version is taken only when that signature is good,
 # every file matches the list, and it is newer than the one in this folder.
@@ -168,8 +168,16 @@ check() {
   local login; login="$(fresh 'printf "\n%s" "$PATH"' 2>/dev/null | tail -n 1)" && [ -n "$login" ] && PATH="$login:$PATH"
   line "Homebrew" "command -v brew"
   line "Node 22+" "node -e 'process.exit(+process.versions.node.split(\".\")[0] < 22 ? 1 : 0)'"
-  line "FFmpeg" "command -v ffmpeg"
-  line "FFprobe" "command -v ffprobe"
+  # Run them: one that is there but cannot start (a library it links to
+  # was replaced) fails a creator in the middle of an edit.
+  local before_ffmpeg=$missing; missing=0
+  line "FFmpeg" "ffmpeg -hide_banner -version"
+  line "FFprobe" "ffprobe -hide_banner -version"
+  # Setup installs FFmpeg only when it is missing, so say what repairs one that is there.
+  if [ "$missing" = 1 ] && fresh "command -v ffmpeg" >/dev/null 2>&1; then
+    echo "      FFmpeg is installed but does not start. Updating it usually repairs that (with Homebrew: brew upgrade ffmpeg)."
+  fi
+  [ "$before_ffmpeg" = 1 ] && missing=1
   line "Python 3" "python3 -c 1"
   line "whisper.cpp" "command -v whisper-cli"
   line "Google Chrome" "test -d '/Applications/Google Chrome.app' || test -d \"\$HOME/Applications/Google Chrome.app\""
@@ -380,7 +388,7 @@ fetch_run() { # fetch_run <url>: download to a file first so a failed download s
 profile_add() { # profile_add <command> <line>: only when a fresh login shell can't find <command>
   fresh 'whence -p "$1"' _ "$1" >/dev/null 2>&1 || grep -qsF "$2" "$HOME/.zprofile" || echo "$2" >> "$HOME/.zprofile"
 }
-has() { fresh 'command -v "$1"' _ "$1" >/dev/null 2>&1; } # same test as the check
+has() { fresh 'command -v "$1"' _ "$1" >/dev/null 2>&1; } # is the command there at all
 
 # Homebrew ships ready-made packages only for recent macOS versions. On an
 # older macOS it builds each one from source: hours at full load, and more

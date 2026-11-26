@@ -1,12 +1,13 @@
-reels-kit 29
-notes Claude also checks for kit updates when you ask for a new reel, so a session left open for days still gets fixes.
-8a0e6d3f4503c54ba2afb715946691f0531c34ef6d7160b1a2b75843c510f16b  CLAUDE.md
+reels-kit 30
+notes Colour grades now stay true to what you filmed: sunset, dusk and night clips keep their mood, and every grade is checked against the original clip
+589d13a2cb5cda06da42ebccd396c40dd0f0c94d3bb0a89542af8224445b31f8  CLAUDE.md
 f4088cf990f3562c89fe78f45333c011c3673e11846c89fafd1201beecc9bc32  README.md
-a9e8bceda04c7cbb3bd18cc2b062e206e22d66407d469f439bbe402a4f05f675  setup.sh
-1984e4e5a5ca3e671b93a1f1f6d92c0fcae97a7704ed083c2f7f557e7f111244  tools/cinematic/cinematic.md
+45af076fe15ade95bcbb4ea3df78b84606b1e3efbe7db2d1dfd38f5463699852  setup.sh
+84404570338357394702947e17b4adf4ed650d1522d52734f315dca091da74bb  tools/cinematic/cinematic.md
 60a3b055c813e4fda9841d0007502b97840cf6ae9caeada88c3878cf9e5065d8  tools/cinematic/fetch.sh
 301f7a02a2043b6a6bfc3175161dfdb1131d073dcdbb6765de0c6a50985dc469  tools/cinematic/measure.sh
 75d6651d24ed2ffcf83bf78cc1c8484558f4dce61ad4900571b4747b1cd52439  tools/cinematic/video-list.js
+24f93454e155f25bcd3abf8209d6daaaabe89fed2495a635bfe6b9c818acf88b  tools/grade-check.py
 eed1bbb82c4ad150111540e825eb4d24521764eb3ef5bdc7f939ab665cdff30f  tools/palmier.py
 71e2b35ce5e8bda3a5d8b4f3c26dbfffdda087c0b20adde552de6f3aaffd86bf  tools/past-chats.py
 d5f385b4bc33e7fe17b64312a778b2761b3bb5aa825c3acf5c66648f576fcd43  tools/run
