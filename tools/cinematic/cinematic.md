@@ -37,15 +37,50 @@ wrong on very dark footage: the images decide.
 
 ## Reference reels
 
-Reels the creator loves, screen-recorded on their phone, sit in
-`setup/references`. Measure each into `setup/reference-notes/<name>/`,
-where `<name>` is the file name without its extension; a reel whose folder
-there has no `done` file is new. A screen recording carries Instagram's
-buttons, the caption and the phone's top bar, and can show bars from the
-phone's screen: judge the framing from `sheet.jpg`, not only from the bars
-line. Look at `sheet.jpg` and at least five shot images of each. When one
-has speech, transcribe it with the language rule into
-`setup/reference-notes/<name>/transcript/`.
+Reels the creator loves sit in `setup/references`. They come as links
+pasted in the chat: a reel's link, or an account's link, meaning that
+account's reels. For an account, open its reels page
+(`instagram.com/<handle>/reels/`) in the browser and read the grid as in
+"Planning content" step 1 in `CLAUDE.md`; take the five most viewed of
+its latest twelve reels, leaving out collabs.
+
+Save each reel as `setup/references/<name>.mp4`, where `<name>` is the
+account's handle as the reel's page shows it, a dash and the reel's code
+(the part after `/reel/` or `/p/` in its link). Skip a reel already saved.
+
+1. Open the reel by loading its link in the tab, never by clicking a
+   reel on a grid. Close a sign-up popup if one covers it.
+2. Run `tools/cinematic/video-list.js` on the page with the browser's
+   page script tool, its whole text as the script. It returns the
+   addresses of the reel's picture and sound, one per line, or
+   `none yet`. With `none yet`, click the video, wait five seconds and
+   run it again. If the result says it was blocked, or the addresses
+   are hidden, do these steps in the Claude app's own browser instead.
+3. Write what it returned, unchanged, to
+   `setup/reference-notes/<name>.txt`.
+4. Run `.tools/run bash tools/cinematic/fetch.sh
+   "setup/reference-notes/<name>.txt" "setup/references/<name>.mp4"`.
+   It can take a few minutes: allow it up to ten. It says `saved` when
+   the reel is saved. When it says `no sound`, click the video, wait
+   five seconds and do steps 2 to 4 once more, then keep what it saved.
+   When it says an address was refused, do steps 1 to 4 once more; when
+   the download stopped, do steps 2 to 4 once more.
+5. Delete `setup/reference-notes/<name>.txt`.
+
+When it says it could not reach Instagram, stop and tell the creator in
+one line to check the internet connection. When Instagram asks to log in,
+tell the creator they can sign in to Instagram in that browser themselves
+and say done, then go on. Skip a reel that still fails, a private one or
+a deleted one. Tell the creator in one line how many reels you saved and
+which you skipped; never show them addresses, scripts or file details. A
+video file they drop into `setup/references` counts the same.
+
+Measure each reel into `setup/reference-notes/<name>/`, where `<name>` is
+the file name without its extension; a reel whose folder there has no
+`done` file is new. Judge from the images: judge the framing from
+`sheet.jpg`, not only from the bars line. Look at `sheet.jpg` and at
+least five shot images of each. When one has speech, transcribe it with
+the language rule into `setup/reference-notes/<name>/transcript/`.
 
 Write what they share into `design.md` under "Cinematic look", one line
 each, naming the reels each line came from. That section guides cinematic

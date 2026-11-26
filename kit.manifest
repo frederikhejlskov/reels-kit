@@ -1,10 +1,12 @@
-reels-kit 26
-notes The photo on the kit's GitHub page changed. Nothing changes in how the kit works.
-8f01d9a9c974a9254df06cd2653060d89c2e18fc48a4dddfed131c542f206681  CLAUDE.md
-b9d710242d6bd886ada5e1ef90b6d6ef7ecb1d3d18d69e062c06468e549a46f5  README.md
-d364e639570315602e5149c3040720da0ddb89779cb0989c57edfe86360ab14f  setup.sh
-75213406f187537e8b146d68fee14d25cdd7c588ed1a0f1ae1aedff437389e83  tools/cinematic/cinematic.md
+reels-kit 27
+notes Paste links to reels or accounts you love: Claude saves and studies those reels, no screen recordings needed
+54271ba5f33406e0b2ef0f26cec1ec3e01ecb6eccc716249e895c8cc576a92fa  CLAUDE.md
+fbb609c2975670740f7ee6f3502eb5eb7f6a5a2dbcd6504d23b4441ed8a6e6b0  README.md
+7b41d7c0ded62b2b7db324242c66c2a082b156c9bd6a4c915197b08b274b9fa7  setup.sh
+1984e4e5a5ca3e671b93a1f1f6d92c0fcae97a7704ed083c2f7f557e7f111244  tools/cinematic/cinematic.md
+60a3b055c813e4fda9841d0007502b97840cf6ae9caeada88c3878cf9e5065d8  tools/cinematic/fetch.sh
 301f7a02a2043b6a6bfc3175161dfdb1131d073dcdbb6765de0c6a50985dc469  tools/cinematic/measure.sh
+75d6651d24ed2ffcf83bf78cc1c8484558f4dce61ad4900571b4747b1cd52439  tools/cinematic/video-list.js
 eed1bbb82c4ad150111540e825eb4d24521764eb3ef5bdc7f939ab665cdff30f  tools/palmier.py
 71e2b35ce5e8bda3a5d8b4f3c26dbfffdda087c0b20adde552de6f3aaffd86bf  tools/past-chats.py
 d5f385b4bc33e7fe17b64312a778b2761b3bb5aa825c3acf5c66648f576fcd43  tools/run
